@@ -10,11 +10,15 @@ import {
   ChevronRight,
   AlertCircle,
   CheckCircle2,
+  Printer,
   BarChart3,
-  Layers
+  Layers,
+  Menu,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { format, parseISO, addDays } from 'date-fns';
+import { format, parseISO, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, eachDayOfInterval } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { 
   BarChart, 
   Bar, 
@@ -72,7 +76,8 @@ const INITIAL_CONFIG: FactoryConfig = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'materials' | 'orders' | 'schedule'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'materials' | 'orders' | 'schedule' | 'planning'>('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [materials, setMaterials] = useState<RawMaterial[]>(INITIAL_MATERIALS);
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
@@ -103,45 +108,77 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#2D1B08] font-sans">
+      {/* Backdrop */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 no-print"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-[#E8DCC4] p-6 hidden md:block">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-[#4A2C2A] rounded-xl flex items-center justify-center text-white">
-            <Factory size={24} />
+      <motion.aside 
+        initial={false}
+        animate={{ x: isSidebarOpen ? 0 : -256 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="fixed left-0 top-0 h-full w-64 bg-white border-r border-[#E8DCC4] p-6 z-50 no-print shadow-2xl md:shadow-none"
+      >
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#4A2C2A] rounded-xl flex items-center justify-center text-white">
+              <Factory size={24} />
+            </div>
+            <h1 className="font-bold text-xl tracking-tight">ChocoPlan</h1>
           </div>
-          <h1 className="font-bold text-xl tracking-tight">ChocoPlan</h1>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-2 hover:bg-[#F7F0E4] rounded-lg text-[#8B5E3C]"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         <nav className="space-y-2">
           <NavItem 
             active={activeTab === 'dashboard'} 
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
             icon={<BarChart3 size={20} />}
             label="Dashboard"
           />
           <NavItem 
             active={activeTab === 'products'} 
-            onClick={() => setActiveTab('products')}
+            onClick={() => { setActiveTab('products'); setIsSidebarOpen(false); }}
             icon={<Package size={20} />}
             label="Produtos"
           />
           <NavItem 
             active={activeTab === 'materials'} 
-            onClick={() => setActiveTab('materials')}
+            onClick={() => { setActiveTab('materials'); setIsSidebarOpen(false); }}
             icon={<Layers size={20} />}
             label="Matéria-Prima"
           />
           <NavItem 
             active={activeTab === 'orders'} 
-            onClick={() => setActiveTab('orders')}
+            onClick={() => { setActiveTab('orders'); setIsSidebarOpen(false); }}
             icon={<ShoppingCart size={20} />}
             label="Pedidos"
           />
           <NavItem 
             active={activeTab === 'schedule'} 
-            onClick={() => setActiveTab('schedule')}
+            onClick={() => { setActiveTab('schedule'); setIsSidebarOpen(false); }}
             icon={<CalendarIcon size={20} />}
             label="Cronograma"
+          />
+          <NavItem 
+            active={activeTab === 'planning'} 
+            onClick={() => { setActiveTab('planning'); setIsSidebarOpen(false); }}
+            icon={<BarChart3 size={20} />}
+            label="Planejamento"
           />
         </nav>
 
@@ -164,14 +201,22 @@ export default function App() {
             </div>
           </div>
         </div>
-      </aside>
+      </motion.aside>
 
       {/* Main Content */}
-      <main className="md:ml-64 p-8">
-        <header className="mb-8 flex justify-between items-center">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight capitalize">{activeTab === 'dashboard' ? 'Visão Geral' : activeTab}</h2>
-            <p className="text-[#8B5E3C] mt-1">Gerencie e otimize sua produção de chocolate.</p>
+      <main className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
+        <header className="mb-8 flex justify-between items-center no-print">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-3 bg-white border border-[#E8DCC4] rounded-xl text-[#4A2C2A] hover:bg-[#F7F0E4] transition-colors shadow-sm"
+            >
+              <Menu size={24} />
+            </button>
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold tracking-tight capitalize">{activeTab === 'dashboard' ? 'Visão Geral' : activeTab}</h2>
+              <p className="text-[#8B5E3C] mt-1 text-sm hidden sm:block">Gerencie e otimize sua produção de chocolate.</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
@@ -216,6 +261,9 @@ export default function App() {
             )}
             {activeTab === 'schedule' && (
               <ScheduleView schedule={schedule} products={products} />
+            )}
+            {activeTab === 'planning' && (
+              <PlanningView schedule={schedule} products={products} />
             )}
           </motion.div>
         </AnimatePresence>
@@ -629,6 +677,125 @@ function ScheduleView({ schedule, products }: { schedule: ScheduledDay[], produc
               </div>
             </div>
           ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PlanningView({ schedule, products }: { schedule: ScheduledDay[], products: Product[] }) {
+  const [viewType, setViewType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const categories = ['Refino', 'Temperagem', 'Confeitaria', 'Embalagem'];
+
+  const filteredSchedule = useMemo(() => {
+    if (viewType === 'daily') {
+      return schedule.filter(day => format(parseISO(day.date), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'));
+    } else if (viewType === 'weekly') {
+      const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
+      const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
+      return schedule.filter(day => isWithinInterval(parseISO(day.date), { start, end }));
+    } else {
+      const start = startOfMonth(selectedDate);
+      const end = endOfMonth(selectedDate);
+      return schedule.filter(day => isWithinInterval(parseISO(day.date), { start, end }));
+    }
+  }, [schedule, viewType, selectedDate]);
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
+        <div className="flex bg-[#F7F0E4] p-1 rounded-xl border border-[#E8DCC4]">
+          <button 
+            onClick={() => setViewType('daily')}
+            className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all", viewType === 'daily' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
+          >
+            Diário
+          </button>
+          <button 
+            onClick={() => setViewType('weekly')}
+            className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all", viewType === 'weekly' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
+          >
+            Semanal
+          </button>
+          <button 
+            onClick={() => setViewType('monthly')}
+            className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all", viewType === 'monthly' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
+          >
+            Mensal
+          </button>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <input 
+            type="date" 
+            value={format(selectedDate, 'yyyy-MM-dd')}
+            onChange={(e) => setSelectedDate(parseISO(e.target.value))}
+            className="bg-white border border-[#E8DCC4] rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+          />
+          <button 
+            onClick={handlePrint}
+            className="bg-[#4A2C2A] text-white px-6 py-2 rounded-xl font-medium hover:bg-[#3A2220] transition-colors flex items-center gap-2"
+          >
+            <Printer size={18} /> Imprimir Relatório
+          </button>
+        </div>
+      </div>
+
+      <div className="print-container">
+        <div className="hidden print-only mb-8 text-center">
+          <h1 className="text-2xl font-bold">Relatório de Planejamento de Produção</h1>
+          <p className="text-gray-600">
+            {viewType === 'daily' && `Data: ${format(selectedDate, 'dd/MM/yyyy')}`}
+            {viewType === 'weekly' && `Semana: ${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'dd/MM')} a ${format(endOfWeek(selectedDate, { weekStartsOn: 1 }), 'dd/MM/yyyy')}`}
+            {viewType === 'monthly' && `Mês: ${format(selectedDate, 'MMMM yyyy', { locale: ptBR })}`}
+          </p>
+        </div>
+
+        {filteredSchedule.length === 0 ? (
+          <div className="bg-white p-12 rounded-3xl border border-[#E8DCC4] text-center text-[#8B5E3C]">
+            Nenhuma produção encontrada para este período.
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {filteredSchedule.map(day => (
+              <div key={day.date} className="bg-white rounded-3xl border border-[#E8DCC4] overflow-hidden shadow-sm print-card">
+                <div className="bg-[#F7F0E4] p-4 border-b border-[#E8DCC4] flex justify-between items-center">
+                  <h4 className="font-bold text-[#4A2C2A]">
+                    {format(parseISO(day.date), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                  </h4>
+                  <span className="text-xs font-bold text-[#8B5E3C]">Carga: {Math.round(day.totalCapacityUsed)}%</span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#F7F0E4]">
+                  {categories.map(category => (
+                    <div key={category} className="p-6">
+                      <h5 className="text-xs font-bold text-[#8B5E3C] uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#4A2C2A]" />
+                        {category}
+                      </h5>
+                      <div className="space-y-3">
+                        {day.orders.map((item, idx) => {
+                          const product = products.find(p => p.id === item.productId);
+                          return (
+                            <div key={idx} className="text-sm">
+                              <div className="font-semibold">{product?.name}</div>
+                              <div className="text-[#8B5E3C] text-xs">{Math.round(item.quantity)} unidades</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
