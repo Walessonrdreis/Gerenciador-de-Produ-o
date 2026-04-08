@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Factory, 
   Package, 
@@ -38,6 +38,8 @@ import {
   ScheduledDay 
 } from './types';
 import { planProduction } from './lib/planner';
+
+import { fetchOmieProducts, fetchOmieFamilies, OmieProduct, OmieFamily } from './services/omieService';
 
 // Initial Mock Data
 const INITIAL_MATERIALS: RawMaterial[] = [
@@ -107,8 +109,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-[#2D1B08] font-sans">
-      {/* Backdrop */}
+    <div className="min-h-screen bg-[#FDFBF7] text-[#2D1B08] font-sans flex">
+      {/* Backdrop for mobile */}
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div 
@@ -116,7 +118,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsSidebarOpen(false)}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 no-print"
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 no-print md:hidden"
           />
         )}
       </AnimatePresence>
@@ -124,9 +126,11 @@ export default function App() {
       {/* Sidebar */}
       <motion.aside 
         initial={false}
-        animate={{ x: isSidebarOpen ? 0 : -256 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed left-0 top-0 h-full w-64 bg-white border-r border-[#E8DCC4] p-6 z-50 no-print shadow-2xl md:shadow-none"
+        animate={{ x: (isSidebarOpen || window.innerWidth >= 768) ? 0 : -256 }}
+        className={cn(
+          "fixed md:sticky left-0 top-0 h-screen w-64 bg-white border-r border-[#E8DCC4] p-6 z-50 no-print shadow-2xl md:shadow-none shrink-0",
+          !isSidebarOpen && "hidden md:block"
+        )}
       >
         <div className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3">
@@ -137,7 +141,7 @@ export default function App() {
           </div>
           <button 
             onClick={() => setIsSidebarOpen(false)}
-            className="p-2 hover:bg-[#F7F0E4] rounded-lg text-[#8B5E3C]"
+            className="p-2 hover:bg-[#F7F0E4] rounded-lg text-[#8B5E3C] md:hidden"
           >
             <X size={20} />
           </button>
@@ -204,30 +208,31 @@ export default function App() {
       </motion.aside>
 
       {/* Main Content */}
-      <main className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
-        <header className="mb-8 flex justify-between items-center no-print">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-3 bg-white border border-[#E8DCC4] rounded-xl text-[#4A2C2A] hover:bg-[#F7F0E4] transition-colors shadow-sm"
-            >
-              <Menu size={24} />
-            </button>
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold tracking-tight capitalize">{activeTab === 'dashboard' ? 'Visão Geral' : activeTab}</h2>
-              <p className="text-[#8B5E3C] mt-1 text-sm hidden sm:block">Gerencie e otimize sua produção de chocolate.</p>
+      <div className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 p-4 md:p-8 w-full max-w-full mx-auto overflow-x-hidden">
+          <header className="mb-8 flex justify-between items-center no-print">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-3 bg-white border border-[#E8DCC4] rounded-xl text-[#4A2C2A] hover:bg-[#F7F0E4] transition-colors shadow-sm md:hidden"
+              >
+                <Menu size={24} />
+              </button>
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight capitalize">{activeTab === 'dashboard' ? 'Visão Geral' : activeTab}</h2>
+                <p className="text-[#8B5E3C] mt-1 text-sm hidden sm:block">Gerencie e otimize sua produção de chocolate.</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium">Fábrica Central</p>
-              <p className="text-xs text-[#8B5E3C]">Status: Operacional</p>
+            <div className="flex items-center gap-4">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-medium">Fábrica Central</p>
+                <p className="text-xs text-[#8B5E3C]">Status: Operacional</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-[#E8DCC4] flex items-center justify-center">
+                <CheckCircle2 size={20} className="text-[#4A2C2A]" />
+              </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-[#E8DCC4] flex items-center justify-center">
-              <CheckCircle2 size={20} className="text-[#4A2C2A]" />
-            </div>
-          </div>
-        </header>
+          </header>
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -263,12 +268,20 @@ export default function App() {
               <ScheduleView schedule={schedule} products={products} />
             )}
             {activeTab === 'planning' && (
-              <PlanningView schedule={schedule} products={products} />
+              <PlanningView 
+                schedule={schedule} 
+                products={products} 
+                orders={orders}
+                setOrders={setOrders}
+                materials={materials}
+                addOrder={addOrder}
+              />
             )}
           </motion.div>
         </AnimatePresence>
       </main>
     </div>
+  </div>
   );
 }
 
@@ -373,6 +386,12 @@ function StatCard({ title, value, subtitle, icon }: { title: string, value: stri
 
 function ProductsView({ products, setProducts, materials }: { products: Product[], setProducts: React.Dispatch<React.SetStateAction<Product[]>>, materials: RawMaterial[] }) {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [omieProducts, setOmieProducts] = useState<OmieProduct[]>([]);
+  const [omieSearch, setOmieSearch] = useState('');
+  const [isLoadingOmie, setIsLoadingOmie] = useState(false);
+  const [omieError, setOmieError] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', capacityCost: 1, materials: [] });
 
   const handleAddProduct = () => {
@@ -383,27 +402,78 @@ function ProductsView({ products, setProducts, materials }: { products: Product[
     }
   };
 
+  const handleUpdateProduct = () => {
+    if (editingProduct) {
+      setProducts(products.map(p => p.id === editingProduct.id ? editingProduct : p));
+      setEditingProduct(null);
+    }
+  };
+
+  const loadOmieProducts = async () => {
+    setIsLoadingOmie(true);
+    setOmieError(null);
+    try {
+      const data = await fetchOmieProducts(1, omieSearch);
+      setOmieProducts(data);
+    } catch (error) {
+      console.error(error);
+      setOmieError(error instanceof Error ? error.message : 'Erro ao carregar produtos do Omie.');
+    } finally {
+      setIsLoadingOmie(false);
+    }
+  };
+
+  const importFromOmie = (omieProd: OmieProduct) => {
+    const imported: Product = {
+      id: `omie-${omieProd.codigo_produto}`,
+      name: omieProd.descricao,
+      capacityCost: 1,
+      materials: [] // User will need to define materials
+    };
+    setProducts([...products, imported]);
+    setIsImporting(false);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-4 flex-wrap">
         <h3 className="text-xl font-bold">Catálogo de Produtos</h3>
-        <button 
-          onClick={() => setIsAdding(true)}
-          className="bg-[#4A2C2A] text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[#3A2220] transition-colors"
-        >
-          <Plus size={20} /> Novo Produto
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => {
+              setIsImporting(true);
+              loadOmieProducts();
+            }}
+            className="bg-white border border-[#E8DCC4] text-[#4A2C2A] px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[#F7F0E4] transition-colors shadow-sm"
+          >
+            <Layers size={20} /> Importar Omie
+          </button>
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="bg-[#4A2C2A] text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-[#3A2220] transition-colors shadow-lg shadow-[#4A2C2A]/20"
+          >
+            <Plus size={20} /> Novo Produto
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map(product => (
           <div key={product.id} className="bg-white p-6 rounded-3xl border border-[#E8DCC4] shadow-sm relative group">
-            <button 
-              onClick={() => setProducts(products.filter(p => p.id !== product.id))}
-              className="absolute top-4 right-4 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600"
-            >
-              <Trash2 size={18} />
-            </button>
+            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={() => setEditingProduct(product)}
+                className="text-[#8B5E3C] hover:text-[#4A2C2A]"
+              >
+                <Settings size={18} />
+              </button>
+              <button 
+                onClick={() => setProducts(products.filter(p => p.id !== product.id))}
+                className="text-red-400 hover:text-red-600"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
             <div className="w-12 h-12 bg-[#F7F0E4] rounded-2xl flex items-center justify-center text-[#4A2C2A] mb-4">
               <Package size={24} />
             </div>
@@ -467,6 +537,156 @@ function ProductsView({ products, setProducts, materials }: { products: Product[
                   Salvar
                 </button>
               </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {editingProduct && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl"
+          >
+            <h3 className="text-2xl font-bold mb-6">Editar Produto</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Nome do Produto</label>
+                <input 
+                  type="text" 
+                  value={editingProduct.name}
+                  onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
+                  className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Custo de Capacidade</label>
+                <input 
+                  type="number" 
+                  value={editingProduct.capacityCost}
+                  onChange={(e) => setEditingProduct({...editingProduct, capacityCost: Number(e.target.value)})}
+                  className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Ingredientes (kg/unidade)</label>
+                {materials.map(mat => {
+                  const currentMat = editingProduct.materials.find(m => m.materialId === mat.id);
+                  return (
+                    <div key={mat.id} className="flex items-center gap-3">
+                      <span className="text-xs flex-1">{mat.name}</span>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        value={currentMat?.amount || 0}
+                        onChange={(e) => {
+                          const amount = Number(e.target.value);
+                          const newMats = [...editingProduct.materials];
+                          const index = newMats.findIndex(m => m.materialId === mat.id);
+                          if (index >= 0) {
+                            newMats[index] = { ...newMats[index], amount };
+                          } else {
+                            newMats.push({ materialId: mat.id, amount });
+                          }
+                          setEditingProduct({ ...editingProduct, materials: newMats });
+                        }}
+                        className="w-20 bg-[#FDFBF7] border border-[#E8DCC4] rounded-lg px-2 py-1 text-sm"
+                      />
+                      <span className="text-[10px] text-[#8B5E3C]">{mat.unit}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-4 mt-8">
+                <button 
+                  onClick={() => setEditingProduct(null)}
+                  className="flex-1 px-4 py-2 rounded-xl border border-[#E8DCC4] font-medium hover:bg-[#FDFBF7] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleUpdateProduct}
+                  className="flex-1 bg-[#4A2C2A] text-white px-4 py-2 rounded-xl font-medium hover:bg-[#3A2220] transition-colors"
+                >
+                  Salvar
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {isImporting && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl max-h-[90vh] flex flex-col"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold">Importar do Omie</h3>
+              <button onClick={() => setIsImporting(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex gap-2 mb-6">
+              <div className="relative flex-1">
+                <input 
+                  type="text" 
+                  placeholder="Buscar por nome..."
+                  value={omieSearch}
+                  onChange={(e) => setOmieSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadOmieProducts()}
+                  className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                />
+                <BarChart3 size={18} className="absolute left-3 top-2.5 text-[#8B5E3C]" />
+              </div>
+              <button 
+                onClick={loadOmieProducts}
+                className="bg-[#4A2C2A] text-white px-6 py-2 rounded-xl font-medium hover:bg-[#3A2220] transition-colors"
+              >
+                Buscar
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+              {omieError && (
+                <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl flex items-center gap-3 mb-4">
+                  <AlertCircle size={20} />
+                  <p className="text-sm">{omieError}</p>
+                </div>
+              )}
+              
+              {isLoadingOmie ? (
+                <div className="flex flex-col items-center justify-center py-12 text-[#8B5E3C]">
+                  <div className="w-8 h-8 border-4 border-[#4A2C2A] border-t-transparent rounded-full animate-spin mb-4" />
+                  <p>Carregando produtos do Omie...</p>
+                </div>
+              ) : omieProducts.length === 0 ? (
+                <div className="text-center py-12 text-[#8B5E3C]">Nenhum produto encontrado.</div>
+              ) : (
+                omieProducts.map(p => (
+                  <div 
+                    key={p.codigo_produto} 
+                    className="flex items-center justify-between p-4 bg-[#FDFBF7] border border-[#E8DCC4] rounded-2xl hover:border-[#4A2C2A] transition-colors group"
+                  >
+                    <div>
+                      <p className="font-bold text-[#4A2C2A]">{p.descricao}</p>
+                      <p className="text-xs text-[#8B5E3C]">Código: {p.codigo_produto_integracao} | Unidade: {p.unidade}</p>
+                    </div>
+                    <button 
+                      onClick={() => importFromOmie(p)}
+                      className="bg-white border border-[#E8DCC4] text-[#4A2C2A] px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-[#4A2C2A] hover:text-white transition-all"
+                    >
+                      Selecionar
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </motion.div>
         </div>
@@ -683,9 +903,95 @@ function ScheduleView({ schedule, products }: { schedule: ScheduledDay[], produc
   );
 }
 
-function PlanningView({ schedule, products }: { schedule: ScheduledDay[], products: Product[] }) {
+function PlanningView({ 
+  schedule, 
+  products, 
+  orders, 
+  setOrders, 
+  materials,
+  addOrder
+}: { 
+  schedule: ScheduledDay[], 
+  products: Product[], 
+  orders: ProductionOrder[],
+  setOrders: React.Dispatch<React.SetStateAction<ProductionOrder[]>>,
+  materials: RawMaterial[],
+  addOrder: (p: string, q: number, d: string) => void
+}) {
   const [viewType, setViewType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isCreating, setIsCreating] = useState(false);
+  const [createMode, setCreateMode] = useState<'manual' | 'auto'>('manual');
+  
+  // Manual Planning States
+  const [manualOrder, setManualOrder] = useState({ productId: products[0]?.id || '', quantity: 10, date: format(new Date(), 'yyyy-MM-dd') });
+  const [families, setFamilies] = useState<OmieFamily[]>([]);
+  const [selectedFamily, setSelectedFamily] = useState<number | null>(null);
+  const [isLoadingFamilies, setIsLoadingFamilies] = useState(false);
+  const [autoProducts, setAutoProducts] = useState<OmieProduct[]>([]);
+  const [isLoadingAuto, setIsLoadingAuto] = useState(false);
+  const [targetStock, setTargetStock] = useState(50); // Default target stock to reach
+
+  useEffect(() => {
+    if (isCreating && createMode === 'auto') {
+      loadFamilies();
+    }
+  }, [isCreating, createMode]);
+
+  const loadFamilies = async () => {
+    setIsLoadingFamilies(true);
+    try {
+      const data = await fetchOmieFamilies();
+      setFamilies(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoadingFamilies(false);
+    }
+  };
+
+  const loadAutoProducts = async () => {
+    if (!selectedFamily) return;
+    setIsLoadingAuto(true);
+    try {
+      const data = await fetchOmieProducts(1, '', selectedFamily);
+      setAutoProducts(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoadingAuto(false);
+    }
+  };
+
+  const handleAutoPlan = () => {
+    const newOrders: ProductionOrder[] = [];
+    autoProducts.forEach(p => {
+      const currentStock = p.estoque_atual || 0;
+      const needed = targetStock - currentStock;
+      
+      if (needed > 0) {
+        // Check if product exists in our catalog
+        const existingProduct = products.find(prod => prod.id === `omie-${p.codigo_produto}` || prod.name === p.descricao);
+        
+        if (existingProduct) {
+          newOrders.push({
+            id: Math.random().toString(36).substr(2, 9),
+            productId: existingProduct.id,
+            quantity: needed,
+            targetDate: format(addDays(new Date(), 7), 'yyyy-MM-dd'), // Default to 1 week from now
+            status: 'pending'
+          });
+        }
+      }
+    });
+
+    if (newOrders.length > 0) {
+      setOrders([...orders, ...newOrders]);
+      setIsCreating(false);
+    } else {
+      alert('Nenhum produto com estoque baixo encontrado para esta categoria.');
+    }
+  };
 
   const categories = ['Refino', 'Temperagem', 'Confeitaria', 'Embalagem'];
 
@@ -710,24 +1016,33 @@ function PlanningView({ schedule, products }: { schedule: ScheduledDay[], produc
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
-        <div className="flex bg-[#F7F0E4] p-1 rounded-xl border border-[#E8DCC4]">
+        <div className="flex gap-4">
+          <div className="flex bg-[#F7F0E4] p-1 rounded-xl border border-[#E8DCC4]">
+            <button 
+              onClick={() => setViewType('daily')}
+              className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all", viewType === 'daily' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
+            >
+              Diário
+            </button>
+            <button 
+              onClick={() => setViewType('weekly')}
+              className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all", viewType === 'weekly' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
+            >
+              Semanal
+            </button>
+            <button 
+              onClick={() => setViewType('monthly')}
+              className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all", viewType === 'monthly' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
+            >
+              Mensal
+            </button>
+          </div>
+          
           <button 
-            onClick={() => setViewType('daily')}
-            className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all", viewType === 'daily' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
+            onClick={() => setIsCreating(true)}
+            className="bg-[#4A2C2A] text-white px-6 py-2 rounded-xl font-medium hover:bg-[#3A2220] transition-colors flex items-center gap-2 shadow-lg shadow-[#4A2C2A]/20"
           >
-            Diário
-          </button>
-          <button 
-            onClick={() => setViewType('weekly')}
-            className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all", viewType === 'weekly' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
-          >
-            Semanal
-          </button>
-          <button 
-            onClick={() => setViewType('monthly')}
-            className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all", viewType === 'monthly' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
-          >
-            Mensal
+            <Plus size={18} /> Criar Planejamento
           </button>
         </div>
 
@@ -748,6 +1063,155 @@ function PlanningView({ schedule, products }: { schedule: ScheduledDay[], produc
       </div>
 
       <div className="print-container">
+        {/* Modals */}
+        <AnimatePresence>
+          {isCreating && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 no-print">
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl flex flex-col max-h-[90vh]"
+              >
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-bold">Criar Planejamento</h3>
+                  <button onClick={() => setIsCreating(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="flex bg-[#F7F0E4] p-1 rounded-xl border border-[#E8DCC4] mb-6">
+                  <button 
+                    onClick={() => setCreateMode('manual')}
+                    className={cn("flex-1 py-2 rounded-lg text-sm font-medium transition-all", createMode === 'manual' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
+                  >
+                    Manual
+                  </button>
+                  <button 
+                    onClick={() => setCreateMode('auto')}
+                    className={cn("flex-1 py-2 rounded-lg text-sm font-medium transition-all", createMode === 'auto' ? "bg-white shadow-sm text-[#4A2C2A]" : "text-[#8B5E3C]")}
+                  >
+                    Automático (Omie)
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto">
+                  {createMode === 'manual' ? (
+                    <div className="space-y-4">
+                      <p className="text-sm text-[#8B5E3C]">Adicione pedidos manualmente para compor o planejamento.</p>
+                      <div className="space-y-4 bg-[#FDFBF7] p-6 rounded-2xl border border-[#E8DCC4]">
+                        <div>
+                          <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Produto</label>
+                          <select 
+                            value={manualOrder.productId}
+                            onChange={(e) => setManualOrder({...manualOrder, productId: e.target.value})}
+                            className="w-full bg-white border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                          >
+                            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Quantidade</label>
+                            <input 
+                              type="number" 
+                              value={manualOrder.quantity}
+                              onChange={(e) => setManualOrder({...manualOrder, quantity: Number(e.target.value)})}
+                              className="w-full bg-white border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Data Limite</label>
+                            <input 
+                              type="date" 
+                              value={manualOrder.date}
+                              onChange={(e) => setManualOrder({...manualOrder, date: e.target.value})}
+                              className="w-full bg-white border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                            />
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            addOrder(manualOrder.productId, manualOrder.quantity, manualOrder.date);
+                            setIsCreating(false);
+                          }}
+                          className="w-full bg-[#4A2C2A] text-white py-3 rounded-xl font-bold hover:bg-[#3A2220] transition-colors"
+                        >
+                          Adicionar ao Planejamento
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Categoria (Família Omie)</label>
+                          <select 
+                            className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                            value={selectedFamily || ''}
+                            onChange={(e) => setSelectedFamily(Number(e.target.value))}
+                          >
+                            <option value="">Selecione uma categoria...</option>
+                            {families.map(f => (
+                              <option key={f.codigo} value={f.codigo}>{f.nome}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Estoque Alvo</label>
+                          <input 
+                            type="number"
+                            value={targetStock}
+                            onChange={(e) => setTargetStock(Number(e.target.value))}
+                            className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={loadAutoProducts}
+                        disabled={!selectedFamily || isLoadingAuto}
+                        className="w-full bg-[#4A2C2A] text-white py-3 rounded-xl font-bold hover:bg-[#3A2220] transition-colors disabled:opacity-50"
+                      >
+                        {isLoadingAuto ? 'Consultando Omie...' : 'Analisar Estoque e Sugerir Produção'}
+                      </button>
+
+                      {autoProducts.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-[#8B5E3C]">Sugestões de Produção</h4>
+                          <div className="space-y-2">
+                            {autoProducts.map(p => {
+                              const currentStock = p.estoque_atual || 0;
+                              const needed = targetStock - currentStock;
+                              if (needed <= 0) return null;
+                              
+                              return (
+                                <div key={p.codigo_produto} className="flex items-center justify-between p-3 bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl">
+                                  <div>
+                                    <p className="font-bold text-sm">{p.descricao}</p>
+                                    <p className="text-[10px] text-[#8B5E3C]">Estoque Atual: {currentStock} | Falta: {needed}</p>
+                                  </div>
+                                  <span className="bg-[#4A2C2A] text-white px-3 py-1 rounded-lg text-xs font-bold">+{needed}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <button 
+                            onClick={handleAutoPlan}
+                            className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-colors mt-4"
+                          >
+                            Confirmar e Gerar Planejamento
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         <div className="hidden print-only mb-8 text-center">
           <h1 className="text-2xl font-bold">Relatório de Planejamento de Produção</h1>
           <p className="text-gray-600">
