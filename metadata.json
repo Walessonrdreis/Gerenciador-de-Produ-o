@@ -1,0 +1,5 @@
+{
+  "name": "ChocoPlan - Planejamento de Produção",
+  "description": "Sistema de planejamento e otimização de produção para fábricas de chocolate, considerando capacidade, feriados e matéria-prima.",
+  "requestFramePermissions": []
+}
