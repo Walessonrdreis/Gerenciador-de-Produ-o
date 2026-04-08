@@ -18,90 +18,166 @@ export interface OmieFamily {
   nome: string;
 }
 
-const APP_KEY = import.meta.env.VITE_OMIE_APP_KEY;
-const APP_SECRET = import.meta.env.VITE_OMIE_APP_SECRET;
+const PAGE_SIZE = 50;
 
-export async function fetchOmieFamilies(): Promise<OmieFamily[]> {
-  if (!APP_KEY || !APP_SECRET) {
-    return [
-      { codigo: 1, nome: 'Barras' },
-      { codigo: 2, nome: 'Bombons' },
-      { codigo: 3, nome: 'Insumos' }
-    ];
+type OmieRequestPayload = Record<string, unknown>;
+
+function getErrorMessage(data: Record<string, unknown>, fallback: string): string {
+  const message = data.faultstring || data.error || data.mensagem || data.descricao;
+  return typeof message === 'string' && message.trim() ? message : fallback;
+}
+
+async function omieRequest(
+  path: string,
+  call: string,
+  params: OmieRequestPayload
+): Promise<Record<string, unknown>> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      call,
+      param: [params]
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || data.faultstring) {
+    throw new Error(getErrorMessage(data, `Erro ao consultar a API da Omie (${call}).`));
   }
 
+  return data;
+}
+
+function extractArray(data: Record<string, unknown>, keys: string[]): Record<string, unknown>[] {
+  for (const key of keys) {
+    const value = data[key];
+    if (Array.isArray(value)) {
+      return value.filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null);
+    }
+  }
+
+  return [];
+}
+
+function getTotalPages(data: Record<string, unknown>): number {
+  const candidates = [
+    data.total_de_paginas,
+    data.total_paginas,
+    data.totalPages
+  ];
+
+  for (const value of candidates) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return 1;
+}
+
+function normalizeFamily(item: Record<string, unknown>): OmieFamily | null {
+  const codigo = Number(item.codigo ?? item.codigo_familia ?? item.codFamilia);
+  const nome = String(item.nome ?? item.descricao ?? item.descricao_familia ?? '').trim();
+
+  if (!Number.isFinite(codigo) || !nome) {
+    return null;
+  }
+
+  return { codigo, nome };
+}
+
+function normalizeProduct(item: Record<string, unknown>): OmieProduct | null {
+  const codigoProduto = Number(item.codigo_produto ?? item.codigo);
+  const descricao = String(item.descricao ?? '').trim();
+
+  if (!Number.isFinite(codigoProduto) || !descricao) {
+    return null;
+  }
+
+  const codigoFamilia = Number(item.codigo_familia);
+  const estoqueAtual = Number(item.estoque_atual ?? item.quantidade_estoque ?? item.saldo_estoque ?? item.saldo);
+  const valorUnitario = Number(item.valor_unitario ?? item.valor ?? 0);
+
+  return {
+    codigo_produto: codigoProduto,
+    codigo_produto_integracao: String(item.codigo_produto_integracao ?? codigoProduto),
+    descricao,
+    unidade: String(item.unidade ?? item.unidade_medida ?? 'UN'),
+    valor_unitario: Number.isFinite(valorUnitario) ? valorUnitario : 0,
+    codigo_familia: Number.isFinite(codigoFamilia) ? codigoFamilia : undefined,
+    estoque_atual: Number.isFinite(estoqueAtual) ? estoqueAtual : undefined
+  };
+}
+
+function dedupeByCode<T extends { codigo: number }>(items: T[]): T[] {
+  return Array.from(new Map(items.map(item => [item.codigo, item])).values());
+}
+
+function dedupeProducts(items: OmieProduct[]): OmieProduct[] {
+  return Array.from(new Map(items.map(item => [item.codigo_produto, item])).values());
+}
+
+export async function fetchOmieFamilies(): Promise<OmieFamily[]> {
+  const families: OmieFamily[] = [];
+  let currentPage = 1;
+  let totalPages = 1;
+
   try {
-    const response = await fetch('/api/omie/geral/familias', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        call: 'ListarFamilias',
-        param: [{ pagina: 1, registros_por_pagina: 100 }]
-      })
-    });
-    const data = await response.json();
-    return data.familias_cadastro || [];
+    do {
+      const data = await omieRequest('/api/omie/geral/familias', 'PesquisarFamilias', {
+        pagina: currentPage,
+        registros_por_pagina: PAGE_SIZE
+      });
+
+      const pageItems = extractArray(data, ['cadastros', 'famCadastro', 'familias_cadastro', 'familias'])
+        .map(normalizeFamily)
+        .filter((item): item is OmieFamily => item !== null);
+
+      families.push(...pageItems);
+      totalPages = getTotalPages(data);
+      currentPage += 1;
+    } while (currentPage <= totalPages);
+
+    return dedupeByCode(families).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   } catch (error) {
     console.error('Error fetching families:', error);
-    return [];
+    throw error;
   }
 }
 
 export async function fetchOmieProducts(page: number = 1, search?: string, familyCode?: number): Promise<OmieProduct[]> {
-  // If no keys are provided, return mock data for demonstration
-  if (!APP_KEY || !APP_SECRET) {
-    console.warn('OMIE API keys not found. Returning mock data.');
-    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network lag
-    
-    const mockProducts: OmieProduct[] = [
-      { codigo_produto: 101, codigo_produto_integracao: 'OM-001', descricao: 'Barra de Chocolate 1kg', unidade: 'UN', valor_unitario: 45.0, codigo_familia: 1, estoque_atual: 5 },
-      { codigo_produto: 102, codigo_produto_integracao: 'OM-002', descricao: 'Bombom Trufado Cx 12', unidade: 'CX', valor_unitario: 28.5, codigo_familia: 2, estoque_atual: 2 },
-      { codigo_produto: 103, codigo_produto_integracao: 'OM-003', descricao: 'Chocolate Branco 500g', unidade: 'UN', valor_unitario: 22.0, codigo_familia: 1, estoque_atual: 15 },
-      { codigo_produto: 104, codigo_produto_integracao: 'OM-004', descricao: 'Granulado Gourmet 2kg', unidade: 'KG', valor_unitario: 65.0, codigo_familia: 3, estoque_atual: 10 },
-      { codigo_produto: 105, codigo_produto_integracao: 'OM-005', descricao: 'Cacau em Pó Extra 1kg', unidade: 'KG', valor_unitario: 55.0, codigo_familia: 3, estoque_atual: 8 },
-    ];
-
-    let filtered = mockProducts;
-    if (search) {
-      filtered = filtered.filter(p => p.descricao.toLowerCase().includes(search.toLowerCase()));
-    }
-    if (familyCode) {
-      filtered = filtered.filter(p => p.codigo_familia === familyCode);
-    }
-    return filtered;
-  }
+  const products: OmieProduct[] = [];
+  const normalizedSearch = search?.trim().toLowerCase();
+  let currentPage = Math.max(page, 1);
+  let totalPages = currentPage;
 
   try {
-    const response = await fetch('/api/omie/geral/produtos', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        call: 'ListarProdutosResumido',
-        param: [
-          {
-            pagina: page,
-            registros_por_pagina: 50,
-            apenas_importado_api: 'N',
-            filtrar_por_descricao: search || undefined,
-            filtrar_por_familia: familyCode || undefined
-          }
-        ]
-      })
+    do {
+      const data = await omieRequest('/api/omie/geral/produtos', 'ListarProdutosResumido', {
+        pagina: currentPage,
+        registros_por_pagina: PAGE_SIZE,
+        apenas_importado_api: 'N',
+        filtrar_apenas_omiepdv: 'N',
+        filtrar_por_descricao: search?.trim() || undefined
+      });
+
+      const pageItems = extractArray(data, ['produto_servico_resumido', 'produto_servico_cadastro', 'produtos'])
+        .map(normalizeProduct)
+        .filter((item): item is OmieProduct => item !== null);
+
+      products.push(...pageItems);
+      totalPages = Math.max(getTotalPages(data), currentPage);
+      currentPage += 1;
+    } while (currentPage <= totalPages);
+
+    return dedupeProducts(products).filter(product => {
+      const matchesFamily = !familyCode || product.codigo_familia === familyCode;
+      const matchesSearch = !normalizedSearch || product.descricao.toLowerCase().includes(normalizedSearch);
+      return matchesFamily && matchesSearch;
     });
-
-    const data = await response.json();
-    
-    if (data.faultstring) {
-      throw new Error(`Omie API Fault: ${data.faultstring}`);
-    }
-
-    if (!response.ok) {
-      throw new Error(data.error || `Omie API error: ${response.statusText}`);
-    }
-
-    return data.produto_servico_resumido || [];
   } catch (error) {
     console.error('Failed to fetch from Omie:', error);
     throw error;

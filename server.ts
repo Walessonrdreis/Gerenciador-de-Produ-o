@@ -19,8 +19,8 @@ async function startServer() {
   app.post('/api/omie/:category/:service', async (req, res) => {
     const { category, service } = req.params;
     const { call, param } = req.body;
-    const app_key = process.env.VITE_OMIE_APP_KEY;
-    const app_secret = process.env.VITE_OMIE_APP_SECRET;
+    const app_key = process.env.OMIE_APP_KEY || process.env.VITE_OMIE_APP_KEY;
+    const app_secret = process.env.OMIE_APP_SECRET || process.env.VITE_OMIE_APP_SECRET;
 
     if (!app_key || !app_secret) {
       return res.status(400).json({ error: 'Omie API keys are not configured on the server.' });
