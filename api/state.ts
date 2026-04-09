@@ -1,5 +1,9 @@
 import { loadAppState, saveAppState, type AppStatePayload } from '../src/server/stateStore';
 
+export const config = {
+  runtime: 'nodejs'
+};
+
 function safeJsonParse(text: string): unknown | null {
   const trimmed = String(text || '').trim();
   if (!trimmed) return null;
