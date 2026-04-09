@@ -877,6 +877,34 @@ function ProductsView({ products, setProducts, materials }: { products: Product[
                   <p className="text-sm">{omieError}</p>
                 </div>
               )}
+              {!isLoadingOmie && !omieError && omieProducts.length === 0 && (omieSearch.trim() || omieFamilyFilter) && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-700 p-4 rounded-xl flex items-center gap-3 mb-4">
+                  <AlertCircle size={20} />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold">Filtro não retornou produtos</p>
+                    <p className="text-xs mt-0.5 break-words">
+                      {omieFamilyFilter ? `Categoria: ${omieFamilies.find(f => f.codigo === omieFamilyFilter)?.nome || '—'} (${omieFamilyFilter})` : 'Categoria: todas'}{omieSearch.trim() ? ` | Busca: "${omieSearch.trim()}"` : ''}
+                    </p>
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      <button
+                        onClick={() => {
+                          setOmieFamilyFilter(null);
+                          loadOmieProducts({ family: null });
+                        }}
+                        className="bg-white border border-amber-200 text-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
+                      >
+                        Buscar sem categoria
+                      </button>
+                      <button
+                        onClick={loadOmieProducts}
+                        className="bg-white border border-amber-200 text-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
+                      >
+                        Tentar novamente
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {isLoadingOmie ? (
                 <div className="flex flex-col items-center justify-center py-12 text-[#8B5E3C]">

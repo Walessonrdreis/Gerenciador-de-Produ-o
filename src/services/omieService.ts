@@ -125,7 +125,7 @@ function normalizeProduct(item: Record<string, unknown>): OmieProduct | null {
     return null;
   }
 
-  const codigoFamilia = Number(item.codigo_familia);
+  const codigoFamilia = Number(item.codigo_familia ?? item.codigoFamilia ?? item.codFamilia ?? item.codigo_familia_produto);
   const estoqueAtual = Number(item.estoque_atual ?? item.quantidade_estoque ?? item.saldo_estoque ?? item.saldo);
   const valorUnitario = Number(item.valor_unitario ?? item.valor ?? 0);
 
@@ -189,7 +189,8 @@ export async function fetchOmieProducts(page: number = 1, search?: string, famil
         registros_por_pagina: PAGE_SIZE,
         apenas_importado_api: 'N',
         filtrar_apenas_omiepdv: 'N',
-        filtrar_por_descricao: search?.trim() || undefined
+        filtrar_por_descricao: search?.trim() || undefined,
+        filtrar_por_familia: familyCode || undefined
       });
 
       const pageItems = extractArray(data, ['produto_servico_resumido', 'produto_servico_cadastro', 'produtos'])
@@ -202,7 +203,7 @@ export async function fetchOmieProducts(page: number = 1, search?: string, famil
     } while (currentPage <= totalPages);
 
     return dedupeProducts(products).filter(product => {
-      const matchesFamily = !familyCode || product.codigo_familia === familyCode;
+      const matchesFamily = !familyCode || !product.codigo_familia || product.codigo_familia === familyCode;
       const matchesSearch = !normalizedSearch || product.descricao.toLowerCase().includes(normalizedSearch);
       return matchesFamily && matchesSearch;
     });
