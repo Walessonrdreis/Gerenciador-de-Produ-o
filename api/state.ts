@@ -1,4 +1,4 @@
-import { loadAppState, saveAppState, type AppStatePayload } from '../src/server/stateStore';
+import { loadAppState, saveAppState, type AppStatePayload } from './_lib/stateStore.js';
 
 export const config = {
   runtime: 'nodejs'
