@@ -181,32 +181,38 @@ export async function fetchOmieProducts(page: number = 1, search?: string, famil
   const normalizedSearch = search?.trim().toLowerCase();
   let currentPage = Math.max(page, 1);
   let totalPages = currentPage;
+  const shouldFetchAllPages = Boolean(search?.trim() || familyCode);
+  const call = familyCode ? 'ListarProdutos' : 'ListarProdutosResumido';
+  const arrayKeys = familyCode
+    ? ['produto_servico_cadastro', 'produto_servico_resumido', 'produtos']
+    : ['produto_servico_resumido', 'produto_servico_cadastro', 'produtos'];
 
   try {
     do {
-      const data = await omieRequest('/api/omie/geral/produtos', 'ListarProdutosResumido', {
+      const data = await omieRequest('/api/omie/geral/produtos', call, {
         pagina: currentPage,
         registros_por_pagina: PAGE_SIZE,
         apenas_importado_api: 'N',
-        filtrar_apenas_omiepdv: 'N',
-        filtrar_por_descricao: search?.trim() || undefined,
-        filtrar_por_familia: familyCode || undefined
+        filtrar_apenas_omiepdv: 'N'
       });
 
-      const pageItems = extractArray(data, ['produto_servico_resumido', 'produto_servico_cadastro', 'produtos'])
+      const pageItems = extractArray(data, arrayKeys)
         .map(normalizeProduct)
         .filter((item): item is OmieProduct => item !== null);
 
       products.push(...pageItems);
       totalPages = Math.max(getTotalPages(data), currentPage);
       currentPage += 1;
-    } while (currentPage <= totalPages);
+    } while (shouldFetchAllPages && currentPage <= totalPages);
 
-    return dedupeProducts(products).filter(product => {
-      const matchesFamily = !familyCode || !product.codigo_familia || product.codigo_familia === familyCode;
+    const filtered = dedupeProducts(products).filter(product => {
       const matchesSearch = !normalizedSearch || product.descricao.toLowerCase().includes(normalizedSearch);
-      return matchesFamily && matchesSearch;
+      if (!matchesSearch) return false;
+      if (!familyCode) return true;
+      return product.codigo_familia === familyCode;
     });
+
+    return shouldFetchAllPages ? filtered : filtered;
   } catch (error) {
     console.error('Failed to fetch from Omie:', error);
     throw error;
