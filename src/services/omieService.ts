@@ -27,6 +27,32 @@ function getErrorMessage(data: Record<string, unknown>, fallback: string): strin
   return typeof message === 'string' && message.trim() ? message : fallback;
 }
 
+function safeJsonParse(text: string): unknown | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+async function readResponsePayload(response: Response): Promise<Record<string, unknown>> {
+  const contentType = response.headers.get('content-type') || '';
+  const rawText = await response.text();
+  const asJson = contentType.includes('application/json') ? safeJsonParse(rawText) : safeJsonParse(rawText);
+
+  if (asJson && typeof asJson === 'object' && asJson !== null) {
+    return asJson as Record<string, unknown>;
+  }
+
+  if (!rawText.trim()) {
+    return {};
+  }
+
+  return { error: rawText };
+}
+
 async function omieRequest(
   path: string,
   call: string,
@@ -41,10 +67,13 @@ async function omieRequest(
     })
   });
 
-  const data = await response.json();
+  const data = await readResponsePayload(response);
 
   if (!response.ok || data.faultstring) {
-    throw new Error(getErrorMessage(data, `Erro ao consultar a API da Omie (${call}).`));
+    const fallback = data.error
+      ? `Erro ao consultar a API da Omie (${call}): ${String(data.error)}`
+      : `Erro ao consultar a API da Omie (${call}).`;
+    throw new Error(getErrorMessage(data, fallback));
   }
 
   return data;

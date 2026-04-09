@@ -41,11 +41,15 @@ async function startServer() {
         })
       });
 
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
+      const rawText = await response.text();
+      try {
+        res.status(response.status).json(rawText.trim() ? JSON.parse(rawText) : {});
+      } catch {
+        res.status(response.status).json({ error: rawText });
+      }
+    } catch (error: any) {
       console.error('Omie Proxy Error:', error);
-      res.status(500).json({ error: 'Failed to fetch from Omie' });
+      res.status(500).json({ error: error?.message || 'Failed to fetch from Omie' });
     }
   });
 

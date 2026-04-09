@@ -51,9 +51,10 @@ export default async function handler(req: any, res: any) {
       })
     });
 
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch from Omie' });
+    const rawText = await response.text();
+    const parsed = rawText.trim() ? JSON.parse(rawText) : {};
+    res.status(response.status).json(parsed);
+  } catch (error: any) {
+    res.status(500).json({ error: error?.message || 'Failed to fetch from Omie' });
   }
 }
