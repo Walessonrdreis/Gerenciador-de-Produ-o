@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
+import { loadAppState, saveAppState } from './src/server/stateStore';
 
 dotenv.config();
 
@@ -14,6 +15,24 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  app.get('/api/state', async (_req, res) => {
+    try {
+      const data = await loadAppState();
+      res.status(200).json({ data });
+    } catch (error: any) {
+      res.status(500).json({ error: error?.message || 'Internal Server Error' });
+    }
+  });
+
+  app.put('/api/state', async (req, res) => {
+    try {
+      await saveAppState(req.body);
+      res.status(200).json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error?.message || 'Internal Server Error' });
+    }
+  });
 
   // Omie Proxy Route
   app.post('/api/omie/:category/:service', async (req, res) => {

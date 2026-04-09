@@ -84,6 +84,7 @@ export default function App() {
   const [materials, setMaterials] = useState<RawMaterial[]>(INITIAL_MATERIALS);
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
   const [config, setConfig] = useState<FactoryConfig>(INITIAL_CONFIG);
+  const [isStateLoaded, setIsStateLoaded] = useState(false);
 
   const schedule = useMemo(() => {
     return planProduction(orders, products, materials, config);
@@ -107,6 +108,51 @@ export default function App() {
   const updateMaterialStock = (id: string, newStock: number) => {
     setMaterials(materials.map(m => m.id === id ? { ...m, stock: newStock } : m));
   };
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/state', { method: 'GET' })
+      .then(async (res) => {
+        const text = await res.text();
+        const json = text.trim() ? JSON.parse(text) : null;
+        return { ok: res.ok, status: res.status, json };
+      })
+      .then(({ ok, status, json }) => {
+        if (!isMounted) return;
+        if (!ok) {
+          console.error('Failed to load state:', status, json);
+          setIsStateLoaded(true);
+          return;
+        }
+        const data = json?.data;
+        if (data?.products) setProducts(data.products);
+        if (data?.materials) setMaterials(data.materials);
+        if (data?.orders) setOrders(data.orders);
+        if (data?.config) setConfig(data.config);
+        setIsStateLoaded(true);
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        console.error('Failed to load state:', error);
+        setIsStateLoaded(true);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isStateLoaded) return;
+    const payload = { products, materials, orders, config };
+    const timeout = setTimeout(() => {
+      fetch('/api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch((error) => console.error('Failed to save state:', error));
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [products, materials, orders, config, isStateLoaded]);
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#2D1B08] font-sans flex">
