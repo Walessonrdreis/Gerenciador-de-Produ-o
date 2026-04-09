@@ -85,6 +85,9 @@ export default function App() {
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
   const [config, setConfig] = useState<FactoryConfig>(INITIAL_CONFIG);
   const [isStateLoaded, setIsStateLoaded] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   const schedule = useMemo(() => {
     return planProduction(orders, products, materials, config);
@@ -109,18 +112,63 @@ export default function App() {
     setMaterials(materials.map(m => m.id === id ? { ...m, stock: newStock } : m));
   };
 
+  const safeJsonParse = (text: string): any | null => {
+    const trimmed = String(text || '').trim();
+    if (!trimmed) return null;
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return null;
+    }
+  };
+
+  const fetchJson = async (url: string, init: RequestInit) => {
+    const res = await fetch(url, init);
+    const text = await res.text();
+    const json = safeJsonParse(text);
+    return { ok: res.ok, status: res.status, json, text };
+  };
+
+  const buildStatePayload = () => ({ products, materials, orders, config });
+
+  const saveNow = async (signal?: AbortSignal) => {
+    setSaveStatus('saving');
+    setSaveMessage(null);
+    const payload = buildStatePayload();
+    try {
+      const { ok, status, json, text } = await fetchJson('/api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal
+      });
+      if (!ok) {
+        const message = json?.error || json?.message || text || `HTTP ${status}`;
+        setSaveStatus('error');
+        setSaveMessage(typeof message === 'string' ? message : `Erro ao salvar (HTTP ${status}).`);
+        return;
+      }
+      setSaveStatus('saved');
+      setLastSavedAt(new Date());
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return;
+      setSaveStatus('error');
+      setSaveMessage(error?.message || 'Falha ao salvar.');
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
-    fetch('/api/state', { method: 'GET' })
-      .then(async (res) => {
-        const text = await res.text();
-        const json = text.trim() ? JSON.parse(text) : null;
-        return { ok: res.ok, status: res.status, json };
-      })
-      .then(({ ok, status, json }) => {
+    setSaveStatus('idle');
+    setSaveMessage(null);
+    fetchJson('/api/state', { method: 'GET' })
+      .then(({ ok, status, json, text }) => {
         if (!isMounted) return;
         if (!ok) {
-          console.error('Failed to load state:', status, json);
+          console.error('Failed to load state:', status, json || text);
+          setSaveStatus('error');
+          const message = json?.error || json?.message || text || `HTTP ${status}`;
+          setSaveMessage(typeof message === 'string' ? message : `Erro ao carregar (HTTP ${status}).`);
           setIsStateLoaded(true);
           return;
         }
@@ -134,6 +182,8 @@ export default function App() {
       .catch((error) => {
         if (!isMounted) return;
         console.error('Failed to load state:', error);
+        setSaveStatus('error');
+        setSaveMessage(error?.message || 'Falha ao carregar.');
         setIsStateLoaded(true);
       });
     return () => {
@@ -143,19 +193,56 @@ export default function App() {
 
   useEffect(() => {
     if (!isStateLoaded) return;
-    const payload = { products, materials, orders, config };
+    const controller = new AbortController();
     const timeout = setTimeout(() => {
-      fetch('/api/state', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).catch((error) => console.error('Failed to save state:', error));
+      saveNow(controller.signal);
     }, 800);
-    return () => clearTimeout(timeout);
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
   }, [products, materials, orders, config, isStateLoaded]);
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#2D1B08] font-sans flex">
+      <div className="fixed bottom-4 right-4 z-50 no-print">
+        {saveStatus !== 'idle' && (
+          <div className="bg-white border border-[#E8DCC4] shadow-lg rounded-2xl px-4 py-3 flex items-start gap-3 max-w-sm">
+            {saveStatus === 'saving' ? (
+              <div className="w-5 h-5 border-2 border-[#4A2C2A] border-t-transparent rounded-full animate-spin mt-0.5" />
+            ) : saveStatus === 'saved' ? (
+              <CheckCircle2 size={20} className="text-green-600 mt-0.5" />
+            ) : (
+              <AlertCircle size={20} className="text-red-600 mt-0.5" />
+            )}
+            <div className="flex-1">
+              <p className="text-sm font-bold text-[#4A2C2A]">
+                {saveStatus === 'saving' ? 'Salvando…' : saveStatus === 'saved' ? 'Dados salvos' : 'Falha ao salvar'}
+              </p>
+              {saveStatus === 'saved' && lastSavedAt && (
+                <p className="text-xs text-[#8B5E3C] mt-0.5">Último salvamento: {format(lastSavedAt, 'HH:mm:ss')}</p>
+              )}
+              {saveStatus === 'error' && saveMessage && (
+                <p className="text-xs text-red-600 mt-0.5 break-words">{saveMessage}</p>
+              )}
+              {saveStatus === 'error' && (
+                <button
+                  onClick={() => saveNow()}
+                  className="mt-2 bg-[#4A2C2A] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#3A2220] transition-colors"
+                >
+                  Tentar novamente
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => setSaveStatus('idle')}
+              className="p-1 hover:bg-[#F7F0E4] rounded-lg text-[#8B5E3C]"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+      </div>
       {/* Backdrop for mobile */}
       <AnimatePresence>
         {isSidebarOpen && (

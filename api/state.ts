@@ -1,4 +1,23 @@
-import { loadAppState, saveAppState } from '../src/server/stateStore';
+import { loadAppState, saveAppState, type AppStatePayload } from '../src/server/stateStore';
+
+function safeJsonParse(text: string): unknown | null {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isAppStatePayload(value: unknown): value is AppStatePayload {
+  if (!isPlainObject(value)) return false;
+  return Array.isArray(value.products) && Array.isArray(value.materials) && Array.isArray(value.orders) && isPlainObject(value.config);
+}
 
 export default async function handler(req: any, res: any) {
   try {
@@ -11,11 +30,21 @@ export default async function handler(req: any, res: any) {
     if (req.method === 'PUT') {
       let body: any = req.body;
       if (typeof body === 'string') {
-        body = JSON.parse(body);
+        const parsed = safeJsonParse(body);
+        if (!parsed) {
+          res.status(400).json({ error: 'Invalid JSON body.' });
+          return;
+        }
+        body = parsed;
       }
 
-      if (!body || typeof body !== 'object') {
+      if (!isPlainObject(body)) {
         res.status(400).json({ error: 'Invalid body.' });
+        return;
+      }
+
+      if (!isAppStatePayload(body)) {
+        res.status(400).json({ error: 'Invalid payload shape.' });
         return;
       }
 
