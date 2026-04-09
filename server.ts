@@ -26,6 +26,16 @@ async function startServer() {
       return res.status(400).json({ error: 'Omie API keys are not configured on the server.' });
     }
     
+    const safeJsonParse = (text: string): any | null => {
+      const trimmed = String(text || '').trim();
+      if (!trimmed) return null;
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return null;
+      }
+    };
+
     try {
       const url = `https://app.omie.com.br/api/v1/${category}/${service}/`;
       const response = await fetch(url, {
@@ -42,11 +52,18 @@ async function startServer() {
       });
 
       const rawText = await response.text();
-      try {
-        res.status(response.status).json(rawText.trim() ? JSON.parse(rawText) : {});
-      } catch {
-        res.status(response.status).json({ error: rawText });
+      const parsed = safeJsonParse(rawText);
+      if (parsed) {
+        res.status(response.status).json(parsed);
+        return;
       }
+
+      if (!rawText.trim()) {
+        res.status(response.status).json({ error: `Empty response from Omie (HTTP ${response.status}).` });
+        return;
+      }
+
+      res.status(response.status).json({ error: rawText });
     } catch (error: any) {
       console.error('Omie Proxy Error:', error);
       res.status(500).json({ error: error?.message || 'Failed to fetch from Omie' });

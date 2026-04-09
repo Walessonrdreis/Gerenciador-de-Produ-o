@@ -38,16 +38,15 @@ function safeJsonParse(text: string): unknown | null {
 }
 
 async function readResponsePayload(response: Response): Promise<Record<string, unknown>> {
-  const contentType = response.headers.get('content-type') || '';
   const rawText = await response.text();
-  const asJson = contentType.includes('application/json') ? safeJsonParse(rawText) : safeJsonParse(rawText);
+  const asJson = safeJsonParse(rawText);
 
   if (asJson && typeof asJson === 'object' && asJson !== null) {
     return asJson as Record<string, unknown>;
   }
 
   if (!rawText.trim()) {
-    return {};
+    return { error: `Resposta vazia da API (HTTP ${response.status}).` };
   }
 
   return { error: rawText };
