@@ -108,7 +108,7 @@ function getTotalPages(data: Record<string, unknown>): number {
 
 function normalizeFamily(item: Record<string, unknown>): OmieFamily | null {
   const codigo = Number(item.codigo ?? item.codigo_familia ?? item.codFamilia);
-  const nome = String(item.nome ?? item.descricao ?? item.descricao_familia ?? '').trim();
+  const nome = String(item.nome ?? item.nomeFamilia ?? item.descricao ?? item.descricao_familia ?? '').trim();
 
   if (!Number.isFinite(codigo) || !nome) {
     return null;

@@ -528,6 +528,7 @@ function ProductsView({ products, setProducts, materials }: { products: Product[
   const [isLoadingOmie, setIsLoadingOmie] = useState(false);
   const [isLoadingOmieFamilies, setIsLoadingOmieFamilies] = useState(false);
   const [omieError, setOmieError] = useState<string | null>(null);
+  const [omieFamiliesError, setOmieFamiliesError] = useState<string | null>(null);
   const [selectedOmieProducts, setSelectedOmieProducts] = useState<Set<number>>(new Set());
   const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', capacityCost: 1, materials: [] });
 
@@ -564,13 +565,16 @@ function ProductsView({ products, setProducts, materials }: { products: Product[
 
   const loadOmieFamilies = async () => {
     setIsLoadingOmieFamilies(true);
-    setOmieError(null);
+    setOmieFamiliesError(null);
     try {
       const data = await fetchOmieFamilies();
       setOmieFamilies(data);
+      if (data.length === 0) {
+        setOmieFamiliesError('Nenhuma categoria retornada pelo Omie.');
+      }
     } catch (error) {
       console.error(error);
-      setOmieError(error instanceof Error ? error.message : 'Erro ao carregar categorias do Omie.');
+      setOmieFamiliesError(error instanceof Error ? error.message : 'Erro ao carregar categorias do Omie.');
     } finally {
       setIsLoadingOmieFamilies(false);
     }
@@ -852,6 +856,21 @@ function ProductsView({ products, setProducts, materials }: { products: Product[
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+              {omieFamiliesError && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-700 p-4 rounded-xl flex items-center gap-3 mb-4">
+                  <AlertCircle size={20} />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold">Categorias do Omie</p>
+                    <p className="text-xs mt-0.5 break-words">{omieFamiliesError}</p>
+                    <button
+                      onClick={loadOmieFamilies}
+                      className="mt-2 bg-white border border-amber-200 text-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
+                    >
+                      Recarregar categorias
+                    </button>
+                  </div>
+                </div>
+              )}
               {omieError && (
                 <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl flex items-center gap-3 mb-4">
                   <AlertCircle size={20} />
