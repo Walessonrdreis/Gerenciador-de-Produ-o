@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchOmieFamilies, fetchOmieProducts, OmieFamily, OmieProduct } from '../omieService';
 import { Product, ProductionOrder } from '../../types';
 import { format, addDays } from 'date-fns';
-import { useAppStore } from '../../store/useAppStore';
 
 export function useOmieFamilies(options?: { enabled?: boolean }) {
   return useQuery<OmieFamily[], Error>({
@@ -40,7 +39,6 @@ interface ImportOmieProductsParams {
 
 export function useImportOmieProducts() {
   const queryClient = useQueryClient();
-  const allSectorIds = useAppStore(state => state.sectors).map(s => s.id);
 
   return useMutation<Product[], Error, ImportOmieProductsParams>({
     mutationFn: async ({ omieProducts, selectedCodes, existingProducts, setProducts }) => {
@@ -54,8 +52,7 @@ export function useImportOmieProducts() {
           id: `omie-${p.codigo_produto}`,
           name: p.descricao,
           capacityCost: 1, // Default capacity cost
-          materials: [], // Needs to be configured later
-          flow: allSectorIds // Default flow: all sectors
+          materials: [] // Needs to be configured later
         } as Product));
 
       if (toAdd.length > 0) {

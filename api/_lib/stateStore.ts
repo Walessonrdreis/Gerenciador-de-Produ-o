@@ -6,7 +6,6 @@ export interface AppStatePayload {
   orders: unknown[];
   config: Record<string, unknown>;
   sectors?: unknown[];
-  sectorCapacities?: unknown[];
 }
 
 interface AppStateDoc {

@@ -13,7 +13,6 @@ export interface Product {
     materialId: string;
     amount: number;
   }[];
-  flow?: string[]; // Array of Sector IDs in order
 }
 
 export interface ProductionOrder {
@@ -25,15 +24,15 @@ export interface ProductionOrder {
   priority?: number; // 1 (Low) to 5 (Critical). Default is 3
 }
 
+export interface SectorCapacity {
+  daily: number;
+}
+
 export interface Sector {
   id: string;
   name: string;
   order: number;
-}
-
-export interface SectorCapacity {
-  sectorId: string;
-  dailyCapacity: number; // quantidade de produtos por dia
+  capacity: SectorCapacity;
 }
 
 export interface FactoryConfig {
