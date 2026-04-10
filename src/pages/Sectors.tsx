@@ -10,8 +10,11 @@ export default function SectorsView() {
   const removeSector = useAppStore(state => state.removeSector);
   const reorderSectors = useAppStore(state => state.reorderSectors);
 
+  const updateSector = useAppStore(state => state.updateSector);
+
   const [isAdding, setIsAdding] = useState(false);
   const [newSectorName, setNewSectorName] = useState('');
+  const [newSectorCapacity, setNewSectorCapacity] = useState(100);
 
   const handleAddSector = () => {
     if (newSectorName.trim()) {
@@ -19,9 +22,11 @@ export default function SectorsView() {
       addSector({
         id: Math.random().toString(36).substr(2, 9),
         name: newSectorName.trim(),
-        order: nextOrder
+        order: nextOrder,
+        capacity: { daily: newSectorCapacity }
       });
       setNewSectorName('');
+      setNewSectorCapacity(100);
       setIsAdding(false);
     }
   };
@@ -62,10 +67,23 @@ export default function SectorsView() {
               >
                 <div className="flex items-center gap-4">
                   <GripVertical className="text-[#E8DCC4] group-hover:text-[#8B5E3C] transition-colors" size={20} />
-                  <div className="w-10 h-10 bg-white border border-[#E8DCC4] rounded-xl flex items-center justify-center text-[#4A2C2A] font-bold">
+                  <div className="w-10 h-10 bg-white border border-[#E8DCC4] rounded-xl flex items-center justify-center text-[#4A2C2A] font-bold shrink-0">
                     {sector.order}
                   </div>
-                  <p className="font-bold text-[#4A2C2A] text-lg">{sector.name}</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 flex-1">
+                    <p className="font-bold text-[#4A2C2A] text-lg w-40 truncate">{sector.name}</p>
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-[#E8DCC4]">
+                      <span className="text-xs font-bold text-[#8B5E3C] uppercase tracking-wider">Capacidade:</span>
+                      <input 
+                        type="number"
+                        min="1"
+                        value={sector.capacity.daily}
+                        onChange={(e) => updateSector({ ...sector, capacity: { daily: Number(e.target.value) || 1 } })}
+                        className="w-16 bg-transparent text-right font-bold text-[#4A2C2A] focus:outline-none"
+                      />
+                      <span className="text-xs text-[#8B5E3C]">un/dia</span>
+                    </div>
+                  </div>
                 </div>
                 <button 
                   onClick={() => {
@@ -101,6 +119,17 @@ export default function SectorsView() {
                   className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
                   placeholder="Ex: Embalagem Seca"
                   autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Capacidade Diária (unidades)</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  value={newSectorCapacity}
+                  onChange={(e) => setNewSectorCapacity(Number(e.target.value))}
+                  className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                  placeholder="Ex: 100"
                 />
               </div>
               <div className="flex gap-4 mt-8">

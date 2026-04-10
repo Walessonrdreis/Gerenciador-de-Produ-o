@@ -75,10 +75,10 @@ const INITIAL_CONFIG: FactoryConfig = {
 };
 
 const INITIAL_SECTORS: Sector[] = [
-  { id: '1', name: 'Refino', order: 1 },
-  { id: '2', name: 'Temperagem', order: 2 },
-  { id: '3', name: 'Confeitaria', order: 3 },
-  { id: '4', name: 'Embalagem', order: 4 },
+  { id: '1', name: 'Refino', order: 1, capacity: { daily: 100 } },
+  { id: '2', name: 'Temperagem', order: 2, capacity: { daily: 100 } },
+  { id: '3', name: 'Confeitaria', order: 3, capacity: { daily: 100 } },
+  { id: '4', name: 'Embalagem', order: 4, capacity: { daily: 100 } },
 ];
 
 export const useAppStore = create<AppState>((set) => ({
