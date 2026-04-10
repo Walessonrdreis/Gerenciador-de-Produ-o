@@ -70,4 +70,29 @@ describe('Planner Sorting Logic (Greedy Strategy)', () => {
     expect(result.schedule[0].orders[0].orderId).toBe('o2');
     expect(result.schedule[0].orders[1].orderId).toBe('o1');
   });
+
+  it('MVP: deve planejar normalmente um produto que não tem receita, gerando um único warning', () => {
+    const productWithoutRecipe: Product = { 
+      id: 'p3', 
+      name: 'Product Without Recipe', 
+      capacityCost: 1, 
+      materials: [] // No recipe
+    };
+
+    const orders: ProductionOrder[] = [
+      { id: 'o3', productId: 'p3', targetDate: '2026-05-01', quantity: 50, status: 'pending' },
+      { id: 'o4', productId: 'p3', targetDate: '2026-05-02', quantity: 30, status: 'pending' }
+    ];
+
+    const result = planProduction(orders, [...mockProducts, productWithoutRecipe], mockMaterials, mockConfig);
+    
+    // Must be scheduled (capacity used)
+    expect(result.schedule[0].orders.length).toBe(2);
+    expect(result.schedule[0].totalCapacityUsed).toBe(80); // 50 + 30
+    
+    // Must contain exactly ONE warning about missing recipe for p3 (deduplicated)
+    const recipeWarnings = result.warnings.filter(w => w.includes('Faltam dados de receita'));
+    expect(recipeWarnings.length).toBe(1);
+    expect(recipeWarnings[0]).toContain('Product Without Recipe');
+  });
 });

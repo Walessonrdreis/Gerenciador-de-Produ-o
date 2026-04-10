@@ -30,16 +30,18 @@ export function planProduction(
   
   const schedule: ScheduledDay[] = [];
   const warnings: string[] = [];
+  const noRecipeWarningSet = new Set<string>();
   const materialStock = new Map(materials.map(m => [m.id, m.stock]));
 
   for (const order of sortedOrders) {
     const product = products.find(p => p.id === order.productId);
     if (!product) continue;
 
-    // Validation: Products without recipe
-    if (!product.materials || product.materials.length === 0) {
-      warnings.push(`Faltam dados de receita para planejar o produto: ${product.name}`);
-      continue; // Skip scheduling for products without recipe to avoid infinite loops or incorrect assumptions
+    // MVP Rule 1 & 2: Products without recipe
+    const hasRecipe = product.materials && product.materials.length > 0;
+    if (!hasRecipe && !noRecipeWarningSet.has(product.id)) {
+      warnings.push(`Faltam dados de receita para planejar adequadamente o produto: ${product.name}`);
+      noRecipeWarningSet.add(product.id);
     }
 
     let remainingToSchedule = order.quantity;
@@ -64,13 +66,16 @@ export function planProduction(
 
         const availableCapacity = config.dailyCapacity - daySchedule.totalCapacityUsed;
         if (availableCapacity > 0) {
-          // Check material availability
-          const maxPossibleByMaterials = product.materials.reduce((min, mat) => {
-            if (mat.amount <= 0) return min; // Prevent division by zero
-            const stock = materialStock.get(mat.materialId) || 0;
-            const possible = Math.floor(stock / mat.amount);
-            return Math.min(min, possible);
-          }, Infinity);
+          // Check material availability (only if the product has a recipe)
+          let maxPossibleByMaterials = Infinity;
+          if (hasRecipe) {
+            maxPossibleByMaterials = product.materials.reduce((min, mat) => {
+              if (mat.amount <= 0) return min; // Prevent division by zero
+              const stock = materialStock.get(mat.materialId) || 0;
+              const possible = Math.floor(stock / mat.amount);
+              return Math.min(min, possible);
+            }, Infinity);
+          }
 
           const amountToSchedule = Math.floor(Math.min(
             remainingToSchedule,
@@ -88,19 +93,21 @@ export function planProduction(
             remainingToSchedule -= amountToSchedule;
 
             // Update material stock
-            product.materials.forEach(mat => {
-              const current = materialStock.get(mat.materialId) || 0;
-              materialStock.set(mat.materialId, current - (mat.amount * amountToSchedule));
-            });
+            if (hasRecipe) {
+              product.materials.forEach(mat => {
+                const current = materialStock.get(mat.materialId) || 0;
+                materialStock.set(mat.materialId, current - (mat.amount * amountToSchedule));
+              });
+            }
           } else {
             // Se chegou aqui e não pode agendar nada, significa que esgotou estoque ou capacidade.
-            // Para evitar loop infinito se a culpa for de estoque zerado num dia em que há capacidade:
-            // O algoritmo greedy simples atual não compra estoque magicamente.
-            // Então vamos quebrar o laço de agendamento desse pedido se travar por falta de material.
-            if (maxPossibleByMaterials === 0) {
+            if (maxPossibleByMaterials === 0 && hasRecipe) {
                warnings.push(`Estoque insuficiente de insumos para finalizar o pedido de ${product.name} (Faltam ${remainingToSchedule} un).`);
                break; 
             }
+            
+            // Se o produto não tem receita, e amountToSchedule é 0, o único motivo é a capacidade ser < custo.
+            // Nesse caso, o loop avança para o próximo dia normalmente.
           }
         }
       }
