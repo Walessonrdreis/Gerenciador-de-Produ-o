@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
-import { loadAppState, saveAppState } from './src/server/stateStore';
+import { loadAppState, saveAppState } from './api/_lib/stateStore.js';
 
 dotenv.config();
 

@@ -38,3 +38,8 @@ export interface ScheduledDay {
     quantity: number;
   }[];
 }
+
+export interface PlanningResult {
+  schedule: ScheduledDay[];
+  warnings: string[];
+}

@@ -4,7 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Calendar as CalendarIcon, 
-  Settings, Plus, X, Package, Trash2, Printer
+  Settings, Plus, X, Package, Trash2, Printer, AlertCircle
 } from 'lucide-react';
 import { ProductionOrder } from '../types';
 import { useAppStore } from '../store/useAppStore';
@@ -22,7 +22,7 @@ export default function PlanningView() {
   const addOrder = useAppStore(state => state.addOrder);
   const setOrders = useAppStore(state => state.setOrders);
   
-  const schedule = useMemo(() => planProduction(orders, products, materials, config), [orders, products, materials, config]);
+  const { schedule, warnings } = useMemo(() => planProduction(orders, products, materials, config), [orders, products, materials, config]);
   const [viewType, setViewType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isCreating, setIsCreating] = useState(false);
@@ -118,6 +118,20 @@ export default function PlanningView() {
 
   return (
     <div className="space-y-6">
+      {warnings && warnings.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-3xl p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-4 text-orange-800">
+            <AlertCircle size={24} />
+            <h4 className="font-bold text-lg">Avisos do Motor de Planejamento</h4>
+          </div>
+          <ul className="list-disc list-inside space-y-2 text-orange-700 ml-2">
+            {warnings.map((warning, idx) => (
+              <li key={idx} className="text-sm font-medium">{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex gap-4">
           <div className="flex bg-[#F7F0E4] p-1 rounded-xl border border-[#E8DCC4]">

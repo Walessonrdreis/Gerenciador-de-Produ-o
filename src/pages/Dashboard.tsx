@@ -11,7 +11,7 @@ export default function DashboardView() {
   const orders = useAppStore(state => state.orders);
   const config = useAppStore(state => state.config);
   
-  const schedule = useMemo(() => planProduction(orders, products, materials, config), [orders, products, materials, config]);
+  const { schedule } = useMemo(() => planProduction(orders, products, materials, config), [orders, products, materials, config]);
   const chartData = useMemo(() => {
     return schedule.slice(0, 14).map(day => ({
       name: format(parseISO(day.date), 'dd/MM'),

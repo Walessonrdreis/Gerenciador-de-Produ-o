@@ -12,7 +12,7 @@ export default function ScheduleView() {
   const config = useAppStore(state => state.config);
   
   const computedSchedule = useMemo(() => planProduction(orders, products, materials, config), [orders, products, materials, config]);
-  const schedule = computedSchedule;
+  const schedule = computedSchedule.schedule;
   return (
     <div className="space-y-6">
       <h3 className="text-xl font-bold">Cronograma de Produção Otimizado</h3>
