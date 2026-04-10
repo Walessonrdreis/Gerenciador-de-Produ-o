@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Factory, Package, ShoppingCart, Calendar as CalendarIcon, 
@@ -9,30 +9,9 @@ import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import { useFactory } from '../store/FactoryContext';
 
-function NavItem({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
-  return (
-    <button 
-      onClick={onClick}
-      className={cn(
-        "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-        active 
-          ? "bg-[#4A2C2A] text-white shadow-lg shadow-[#4A2C2A]/20" 
-          : "text-[#8B5E3C] hover:bg-[#F7F0E4] hover:text-[#4A2C2A]"
-      )}
-    >
-      <span className={cn("transition-transform duration-200", active ? "scale-110" : "group-hover:scale-110")}>
-        {icon}
-      </span>
-      <span className="font-medium">{label}</span>
-      {active && <ChevronRight size={16} className="ml-auto opacity-50" />}
-    </button>
-  );
-}
-
 export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
   const { config, setConfig, saveStatus, saveMessage, lastSavedAt, saveNow, setSaveStatus } = useFactory();
 
   const getPageTitle = () => {
@@ -47,10 +26,14 @@ export default function Layout() {
     }
   };
 
-  const handleNav = (path: string) => {
-    navigate(path);
-    setIsSidebarOpen(false);
-  };
+  const navItems = [
+    { to: '/', icon: <BarChart3 size={20} />, label: 'Dashboard' },
+    { to: '/produtos', icon: <Package size={20} />, label: 'Produtos' },
+    { to: '/materiais', icon: <Layers size={20} />, label: 'Matéria-Prima' },
+    { to: '/pedidos', icon: <ShoppingCart size={20} />, label: 'Pedidos' },
+    { to: '/cronograma', icon: <CalendarIcon size={20} />, label: 'Cronograma' },
+    { to: '/planejamento', icon: <BarChart3 size={20} />, label: 'Planejamento' },
+  ];
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#2D1B08] font-sans flex">
@@ -129,12 +112,31 @@ export default function Layout() {
         </div>
 
         <nav className="space-y-2">
-          <NavItem active={location.pathname === '/'} onClick={() => handleNav('/')} icon={<BarChart3 size={20} />} label="Dashboard" />
-          <NavItem active={location.pathname === '/produtos'} onClick={() => handleNav('/produtos')} icon={<Package size={20} />} label="Produtos" />
-          <NavItem active={location.pathname === '/materiais'} onClick={() => handleNav('/materiais')} icon={<Layers size={20} />} label="Matéria-Prima" />
-          <NavItem active={location.pathname === '/pedidos'} onClick={() => handleNav('/pedidos')} icon={<ShoppingCart size={20} />} label="Pedidos" />
-          <NavItem active={location.pathname === '/cronograma'} onClick={() => handleNav('/cronograma')} icon={<CalendarIcon size={20} />} label="Cronograma" />
-          <NavItem active={location.pathname === '/planejamento'} onClick={() => handleNav('/planejamento')} icon={<BarChart3 size={20} />} label="Planejamento" />
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={() => setIsSidebarOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                  isActive
+                    ? "bg-[#4A2C2A] text-white shadow-lg shadow-[#4A2C2A]/20"
+                    : "text-[#8B5E3C] hover:bg-[#F7F0E4] hover:text-[#4A2C2A]"
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <span className={cn("transition-transform duration-200", isActive ? "scale-110" : "group-hover:scale-110")}>
+                    {item.icon}
+                  </span>
+                  <span className="font-medium">{item.label}</span>
+                  {isActive && <ChevronRight size={16} className="ml-auto opacity-50" />}
+                </>
+              )}
+            </NavLink>
+          ))}
         </nav>
 
         <div className="absolute bottom-6 left-6 right-6">
