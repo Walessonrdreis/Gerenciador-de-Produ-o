@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Product, RawMaterial, ProductionOrder, FactoryConfig } from '../types';
+import { Product, RawMaterial, ProductionOrder, FactoryConfig, Sector } from '../types';
 
 export interface AppState {
   // State
@@ -7,6 +7,14 @@ export interface AppState {
   materials: RawMaterial[];
   orders: ProductionOrder[];
   config: FactoryConfig;
+  sectors: Sector[];
+
+  // Actions - Sectors
+  setSectors: (sectors: Sector[]) => void;
+  addSector: (sector: Sector) => void;
+  removeSector: (id: string) => void;
+  updateSector: (sector: Sector) => void;
+  reorderSectors: (reordered: Sector[]) => void;
 
   // Actions - Products
   setProducts: (products: Product[]) => void;
@@ -66,12 +74,27 @@ const INITIAL_CONFIG: FactoryConfig = {
   holidays: ['2026-04-21', '2026-05-01'],
 };
 
+const INITIAL_SECTORS: Sector[] = [
+  { id: '1', name: 'Refino', order: 1 },
+  { id: '2', name: 'Temperagem', order: 2 },
+  { id: '3', name: 'Confeitaria', order: 3 },
+  { id: '4', name: 'Embalagem', order: 4 },
+];
+
 export const useAppStore = create<AppState>((set) => ({
   // Initial State
   products: INITIAL_PRODUCTS,
   materials: INITIAL_MATERIALS,
   orders: [],
   config: INITIAL_CONFIG,
+  sectors: INITIAL_SECTORS,
+
+  // Sectors
+  setSectors: (sectors) => set({ sectors }),
+  addSector: (sector) => set((state) => ({ sectors: [...state.sectors, sector] })),
+  removeSector: (id) => set((state) => ({ sectors: state.sectors.filter(s => s.id !== id) })),
+  updateSector: (sector) => set((state) => ({ sectors: state.sectors.map(s => s.id === sector.id ? sector : s) })),
+  reorderSectors: (reordered) => set({ sectors: reordered }),
 
   // Products
   setProducts: (products) => set({ products }),
@@ -116,6 +139,7 @@ export const useAppStore = create<AppState>((set) => ({
     products: data.products || state.products,
     materials: data.materials || state.materials,
     orders: data.orders || state.orders,
-    config: data.config || state.config
+    config: data.config || state.config,
+    sectors: data.sectors || state.sectors
   }))
 }));

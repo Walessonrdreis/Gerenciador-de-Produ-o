@@ -5,6 +5,7 @@ export interface AppStatePayload {
   materials: unknown[];
   orders: unknown[];
   config: Record<string, unknown>;
+  sectors?: unknown[];
 }
 
 interface AppStateDoc {

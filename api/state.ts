@@ -20,7 +20,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function isAppStatePayload(value: unknown): value is AppStatePayload {
   if (!isPlainObject(value)) return false;
-  return Array.isArray(value.products) && Array.isArray(value.materials) && Array.isArray(value.orders) && isPlainObject(value.config);
+  return Array.isArray(value.products) && Array.isArray(value.materials) && Array.isArray(value.orders) && isPlainObject(value.config) && (value.sectors === undefined || Array.isArray(value.sectors));
 }
 
 export default async function handler(req: any, res: any) {

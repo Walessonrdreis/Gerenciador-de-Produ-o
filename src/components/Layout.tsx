@@ -25,6 +25,7 @@ export default function Layout() {
       case '/pedidos': return 'Pedidos';
       case '/cronograma': return 'Cronograma';
       case '/planejamento': return 'Planejamento';
+      case '/setores': return 'Setores';
       default: return 'Visão Geral';
     }
   };
@@ -36,6 +37,7 @@ export default function Layout() {
     { to: '/pedidos', icon: <ShoppingCart size={20} />, label: 'Pedidos' },
     { to: '/cronograma', icon: <CalendarIcon size={20} />, label: 'Cronograma' },
     { to: '/planejamento', icon: <BarChart3 size={20} />, label: 'Planejamento' },
+    { to: '/setores', icon: <Settings size={20} />, label: 'Setores' },
   ];
 
   return (

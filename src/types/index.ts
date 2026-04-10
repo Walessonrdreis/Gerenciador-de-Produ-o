@@ -24,6 +24,12 @@ export interface ProductionOrder {
   priority?: number; // 1 (Low) to 5 (Critical). Default is 3
 }
 
+export interface Sector {
+  id: string;
+  name: string;
+  order: number;
+}
+
 export interface FactoryConfig {
   dailyCapacity: number; // Max capacity units per day
   workDays: number[]; // 0-6 (Sunday-Saturday)

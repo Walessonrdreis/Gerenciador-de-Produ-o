@@ -7,6 +7,7 @@ export function useAutoSave(debounceMs: number = 800) {
   const materials = useAppStore(state => state.materials);
   const orders = useAppStore(state => state.orders);
   const config = useAppStore(state => state.config);
+  const sectors = useAppStore(state => state.sectors);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +27,7 @@ export function useAutoSave(debounceMs: number = 800) {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     
-    const payload = { products, materials, orders, config };
+    const payload = { products, materials, orders, config, sectors };
     try {
       await saveState(payload, controller.signal);
       setLastSavedAt(new Date());
@@ -55,7 +56,7 @@ export function useAutoSave(debounceMs: number = 800) {
       clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products, materials, orders, config, debounceMs]);
+  }, [products, materials, orders, config, sectors, debounceMs]);
 
   return {
     isSaving,
