@@ -1207,6 +1207,9 @@ function PlanningView({
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isCreating, setIsCreating] = useState(false);
   const [createMode, setCreateMode] = useState<'manual' | 'auto'>('manual');
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [orderDraft, setOrderDraft] = useState({ productId: products[0]?.id || '', quantity: 10, date: format(new Date(), 'yyyy-MM-dd') });
   
   // Manual Planning States
   const [manualOrder, setManualOrder] = useState({ productId: products[0]?.id || '', quantity: 10, date: format(new Date(), 'yyyy-MM-dd') });
@@ -1278,7 +1281,40 @@ function PlanningView({
     }
   };
 
-  const categories = ['Refino', 'Temperagem', 'Confeitaria', 'Embalagem'];
+  const openCreateOrder = () => {
+    setEditingOrderId(null);
+    setOrderDraft({ productId: products[0]?.id || '', quantity: 10, date: format(new Date(), 'yyyy-MM-dd') });
+    setIsEditingOrder(true);
+  };
+
+  const openEditOrder = (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    setEditingOrderId(orderId);
+    setOrderDraft({ productId: order.productId, quantity: order.quantity, date: order.targetDate });
+    setIsEditingOrder(true);
+  };
+
+  const saveOrder = () => {
+    if (!orderDraft.productId || !orderDraft.date || !orderDraft.quantity) return;
+    if (editingOrderId) {
+      setOrders(prev => prev.map(o => o.id === editingOrderId ? { ...o, productId: orderDraft.productId, quantity: Number(orderDraft.quantity), targetDate: orderDraft.date, status: 'pending' } : o));
+    } else {
+      const newOrder: ProductionOrder = {
+        id: Math.random().toString(36).substr(2, 9),
+        productId: orderDraft.productId,
+        quantity: Number(orderDraft.quantity),
+        targetDate: orderDraft.date,
+        status: 'pending'
+      };
+      setOrders(prev => [...prev, newOrder]);
+    }
+    setIsEditingOrder(false);
+  };
+
+  const deleteOrder = (orderId: string) => {
+    setOrders(prev => prev.filter(o => o.id !== orderId));
+  };
 
   const filteredSchedule = useMemo(() => {
     if (viewType === 'daily') {
@@ -1329,6 +1365,12 @@ function PlanningView({
           >
             <Plus size={18} /> Criar Planejamento
           </button>
+          <button 
+            onClick={openCreateOrder}
+            className="bg-white border border-[#E8DCC4] text-[#4A2C2A] px-6 py-2 rounded-xl font-medium hover:bg-[#F7F0E4] transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <Plus size={18} /> Novo Pedido
+          </button>
         </div>
 
         <div className="flex items-center gap-4">
@@ -1350,6 +1392,69 @@ function PlanningView({
       <div className="print-container">
         {/* Modals */}
         <AnimatePresence>
+          {isEditingOrder && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 no-print">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl"
+              >
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-bold">{editingOrderId ? 'Editar Pedido' : 'Criar Pedido'}</h3>
+                  <button onClick={() => setIsEditingOrder(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                    <X size={24} />
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Produto</label>
+                    <select
+                      value={orderDraft.productId}
+                      onChange={(e) => setOrderDraft({ ...orderDraft, productId: e.target.value })}
+                      className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                    >
+                      {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Quantidade</label>
+                      <input
+                        type="number"
+                        value={orderDraft.quantity}
+                        onChange={(e) => setOrderDraft({ ...orderDraft, quantity: Number(e.target.value) })}
+                        className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[#8B5E3C] mb-1">Data Limite</label>
+                      <input
+                        type="date"
+                        value={orderDraft.date}
+                        onChange={(e) => setOrderDraft({ ...orderDraft, date: e.target.value })}
+                        className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mt-8">
+                    <button
+                      onClick={() => setIsEditingOrder(false)}
+                      className="flex-1 px-4 py-2 rounded-xl border border-[#E8DCC4] font-medium hover:bg-[#FDFBF7] transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={saveOrder}
+                      className="flex-1 bg-[#4A2C2A] text-white px-4 py-2 rounded-xl font-medium hover:bg-[#3A2220] transition-colors"
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
           {isCreating && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 no-print">
               <motion.div 
@@ -1521,26 +1626,43 @@ function PlanningView({
                   <span className="text-xs font-bold text-[#8B5E3C]">Carga: {Math.round(day.totalCapacityUsed)}%</span>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#F7F0E4]">
-                  {categories.map(category => (
-                    <div key={category} className="p-6">
-                      <h5 className="text-xs font-bold text-[#8B5E3C] uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-[#4A2C2A]" />
-                        {category}
-                      </h5>
-                      <div className="space-y-3">
-                        {day.orders.map((item, idx) => {
-                          const product = products.find(p => p.id === item.productId);
-                          return (
-                            <div key={idx} className="text-sm">
-                              <div className="font-semibold">{product?.name}</div>
-                              <div className="text-[#8B5E3C] text-xs">{Math.round(item.quantity)} unidades</div>
+                <div className="p-6">
+                  {day.orders.length === 0 ? (
+                    <div className="text-sm text-[#8B5E3C]">Nenhum item agendado para este dia.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {day.orders.map((item) => {
+                        const product = products.find(p => p.id === item.productId);
+                        return (
+                          <div key={`${item.orderId}-${item.productId}-${item.quantity}`} className="flex items-center justify-between p-3 bg-[#FDFBF7] rounded-xl border border-[#F7F0E4]">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-[#E8DCC4]">
+                                <Package size={16} />
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold">{product?.name || 'Produto Desconhecido'}</div>
+                                <div className="text-[#8B5E3C] text-xs">{Math.round(item.quantity)} unidades</div>
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
+                            <div className="flex items-center gap-3 no-print">
+                              <button
+                                onClick={() => openEditOrder(item.orderId)}
+                                className="text-[#8B5E3C] hover:text-[#4A2C2A] transition-colors"
+                              >
+                                <Settings size={18} />
+                              </button>
+                              <button
+                                onClick={() => deleteOrder(item.orderId)}
+                                className="text-red-400 hover:text-red-600 transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ))}
