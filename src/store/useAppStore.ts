@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Product, RawMaterial, ProductionOrder, FactoryConfig, Sector } from '../types';
+import { Product, RawMaterial, ProductionOrder, FactoryConfig, Sector, SectorCapacity } from '../types';
 
 export interface AppState {
   // State
@@ -8,13 +8,17 @@ export interface AppState {
   orders: ProductionOrder[];
   config: FactoryConfig;
   sectors: Sector[];
+  sectorCapacities: SectorCapacity[];
 
   // Actions - Sectors
   setSectors: (sectors: Sector[]) => void;
-  addSector: (sector: Sector) => void;
+  addSector: (sector: Sector, defaultCapacity: number) => void;
   removeSector: (id: string) => void;
   updateSector: (sector: Sector) => void;
   reorderSectors: (reordered: Sector[]) => void;
+  
+  // Actions - Sector Capacities
+  updateSectorCapacity: (sectorId: string, dailyCapacity: number) => void;
 
   // Actions - Products
   setProducts: (products: Product[]) => void;
@@ -47,10 +51,17 @@ const INITIAL_MATERIALS: RawMaterial[] = [
 ];
 
 const INITIAL_SECTORS: Sector[] = [
-  { id: '1', name: 'Refino', order: 1, capacity: { daily: 100 } },
-  { id: '2', name: 'Temperagem', order: 2, capacity: { daily: 100 } },
-  { id: '3', name: 'Confeitaria', order: 3, capacity: { daily: 100 } },
-  { id: '4', name: 'Embalagem', order: 4, capacity: { daily: 100 } },
+  { id: '1', name: 'Refino', order: 1 },
+  { id: '2', name: 'Temperagem', order: 2 },
+  { id: '3', name: 'Confeitaria', order: 3 },
+  { id: '4', name: 'Embalagem', order: 4 },
+];
+
+const INITIAL_SECTOR_CAPACITIES: SectorCapacity[] = [
+  { sectorId: '1', dailyCapacity: 100 },
+  { sectorId: '2', dailyCapacity: 100 },
+  { sectorId: '3', dailyCapacity: 100 },
+  { sectorId: '4', dailyCapacity: 100 },
 ];
 
 const INITIAL_PRODUCTS: Product[] = [
@@ -90,13 +101,34 @@ export const useAppStore = create<AppState>((set) => ({
   orders: [],
   config: INITIAL_CONFIG,
   sectors: INITIAL_SECTORS,
+  sectorCapacities: INITIAL_SECTOR_CAPACITIES,
 
   // Sectors
   setSectors: (sectors) => set({ sectors }),
-  addSector: (sector) => set((state) => ({ sectors: [...state.sectors, sector] })),
-  removeSector: (id) => set((state) => ({ sectors: state.sectors.filter(s => s.id !== id) })),
+  addSector: (sector, defaultCapacity) => set((state) => ({ 
+    sectors: [...state.sectors, sector],
+    sectorCapacities: [...state.sectorCapacities, { sectorId: sector.id, dailyCapacity: defaultCapacity }]
+  })),
+  removeSector: (id) => set((state) => ({ 
+    sectors: state.sectors.filter(s => s.id !== id),
+    sectorCapacities: state.sectorCapacities.filter(c => c.sectorId !== id)
+  })),
   updateSector: (sector) => set((state) => ({ sectors: state.sectors.map(s => s.id === sector.id ? sector : s) })),
   reorderSectors: (reordered) => set({ sectors: reordered }),
+
+  // Sector Capacities
+  updateSectorCapacity: (sectorId, dailyCapacity) => set((state) => {
+    const existing = state.sectorCapacities.find(c => c.sectorId === sectorId);
+    if (existing) {
+      return {
+        sectorCapacities: state.sectorCapacities.map(c => c.sectorId === sectorId ? { ...c, dailyCapacity } : c)
+      };
+    } else {
+      return {
+        sectorCapacities: [...state.sectorCapacities, { sectorId, dailyCapacity }]
+      };
+    }
+  }),
 
   // Products
   setProducts: (products) => set({ products }),
@@ -150,7 +182,8 @@ export const useAppStore = create<AppState>((set) => ({
       materials: data.materials || state.materials,
       orders: data.orders || state.orders,
       config: data.config || state.config,
-      sectors: data.sectors || state.sectors
+      sectors: data.sectors || state.sectors,
+      sectorCapacities: data.sectorCapacities || state.sectorCapacities
     };
   })
 }));

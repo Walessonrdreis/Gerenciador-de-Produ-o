@@ -6,11 +6,11 @@ import { Sector } from '../types';
 
 export default function SectorsView() {
   const sectors = useAppStore(state => state.sectors);
+  const sectorCapacities = useAppStore(state => state.sectorCapacities);
   const addSector = useAppStore(state => state.addSector);
   const removeSector = useAppStore(state => state.removeSector);
   const reorderSectors = useAppStore(state => state.reorderSectors);
-
-  const updateSector = useAppStore(state => state.updateSector);
+  const updateSectorCapacity = useAppStore(state => state.updateSectorCapacity);
 
   const [isAdding, setIsAdding] = useState(false);
   const [newSectorName, setNewSectorName] = useState('');
@@ -22,9 +22,8 @@ export default function SectorsView() {
       addSector({
         id: Math.random().toString(36).substr(2, 9),
         name: newSectorName.trim(),
-        order: nextOrder,
-        capacity: { daily: newSectorCapacity }
-      });
+        order: nextOrder
+      }, newSectorCapacity);
       setNewSectorName('');
       setNewSectorCapacity(100);
       setIsAdding(false);
@@ -59,7 +58,9 @@ export default function SectorsView() {
             onReorder={reorderSectors} 
             className="space-y-3"
           >
-            {sectors.map((sector) => (
+            {sectors.map((sector) => {
+              const capacity = sectorCapacities.find(c => c.sectorId === sector.id)?.dailyCapacity || 100;
+              return (
               <Reorder.Item 
                 key={sector.id} 
                 value={sector}
@@ -77,8 +78,8 @@ export default function SectorsView() {
                       <input 
                         type="number"
                         min="1"
-                        value={sector.capacity.daily}
-                        onChange={(e) => updateSector({ ...sector, capacity: { daily: Number(e.target.value) || 1 } })}
+                        value={capacity}
+                        onChange={(e) => updateSectorCapacity(sector.id, Number(e.target.value) || 1)}
                         className="w-16 bg-transparent text-right font-bold text-[#4A2C2A] focus:outline-none"
                       />
                       <span className="text-xs text-[#8B5E3C]">un/dia</span>
@@ -96,7 +97,7 @@ export default function SectorsView() {
                   <Trash2 size={20} />
                 </button>
               </Reorder.Item>
-            ))}
+            )})}
           </Reorder.Group>
         )}
       </div>

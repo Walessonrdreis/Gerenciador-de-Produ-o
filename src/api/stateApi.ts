@@ -1,4 +1,4 @@
-import { Product, RawMaterial, ProductionOrder, FactoryConfig, Sector } from '../types';
+import { Product, RawMaterial, ProductionOrder, FactoryConfig, Sector, SectorCapacity } from '../types';
 
 const safeJsonParse = (text: string): any | null => {
   const trimmed = String(text || '').trim();
@@ -19,6 +19,7 @@ export interface AppStatePayload {
   orders: ProductionOrder[];
   config: FactoryConfig;
   sectors: Sector[];
+  sectorCapacities: SectorCapacity[];
 }
 
 export async function getState(): Promise<AppStatePayload> {
