@@ -394,7 +394,7 @@ export default function ProductsView() {
             <div className="pt-6 mt-6 border-t border-[#E8DCC4] flex items-center gap-3 flex-wrap">
               <button
                 onClick={selectAllOmieProducts}
-                disabled={omieProducts.length === 0}
+                disabled={!omieProducts || omieProducts.length === 0}
                 className="bg-white border border-[#E8DCC4] text-[#4A2C2A] px-4 py-2 rounded-xl font-medium hover:bg-[#F7F0E4] transition-colors disabled:opacity-50"
               >
                 Selecionar todos
