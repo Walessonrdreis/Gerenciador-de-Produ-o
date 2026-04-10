@@ -7,8 +7,26 @@ export function planProduction(
   materials: RawMaterial[],
   config: FactoryConfig
 ): PlanningResult {
-  // Sort orders by target date
-  const sortedOrders = [...orders].sort((a, b) => a.targetDate.localeCompare(b.targetDate));
+  // O Algoritmo de Agendamento (Greedy Algorithm) foi evoluído.
+  // Regra de Ordenação (Desempate):
+  // 1. Prioridade (Score): do mais alto (5) para o mais baixo (1). Padrão é 3.
+  // 2. Desempate 1: Data Limite (targetDate) - O que precisa ser entregue primeiro ganha.
+  // 3. Desempate 2: Quantidade (quantity) - O menor pedido ganha, otimizando o "throughput" (Shortest Job First).
+  const sortedOrders = [...orders].sort((a, b) => {
+    const priorityA = a.priority ?? 3;
+    const priorityB = b.priority ?? 3;
+    
+    if (priorityA !== priorityB) {
+      return priorityB - priorityA; // Descending (5 to 1)
+    }
+    
+    const dateComparison = a.targetDate.localeCompare(b.targetDate);
+    if (dateComparison !== 0) {
+      return dateComparison; // Ascending (Earliest first)
+    }
+    
+    return a.quantity - b.quantity; // Ascending (Smallest first)
+  });
   
   const schedule: ScheduledDay[] = [];
   const warnings: string[] = [];

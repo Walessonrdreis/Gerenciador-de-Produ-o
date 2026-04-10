@@ -21,6 +21,7 @@ export interface ProductionOrder {
   targetDate: string; // ISO date
   quantity: number;
   status: 'pending' | 'scheduled' | 'completed';
+  priority?: number; // 1 (Low) to 5 (Critical). Default is 3
 }
 
 export interface FactoryConfig {
