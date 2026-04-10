@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { ProductionOrder } from '../types';
 import { useAppStore } from '../store/useAppStore';
-import { useOmieProducts, useOmieFamilies } from '../api/omie/queries';
+import { useOmieProducts, useOmieFamilies, useCreateAutoOrders } from '../api/omie/queries';
 import { planProduction } from '../lib/planner';
 import { cn } from '../lib/utils';
 
@@ -37,37 +37,26 @@ export default function PlanningView() {
   const [targetStock, setTargetStock] = useState(50); // Default target stock to reach
 
   const { data: families, isLoading: isLoadingFamilies } = useOmieFamilies({ enabled: isCreating && createMode === 'auto' });
-  const { data: autoProducts, isLoading: isLoadingAuto } = useOmieProducts(1, '', selectedFamily, { enabled: isCreating && createMode === 'auto' && selectedFamily !== null });
+  const { data: autoProducts, isLoading: isLoadingAuto, error: autoError } = useOmieProducts(1, '', selectedFamily, { enabled: isCreating && createMode === 'auto' && selectedFamily !== null });
+  const createAutoOrdersMutation = useCreateAutoOrders();
 
   const handleAutoPlan = () => {
     if (!autoProducts) return;
-    const newOrders: ProductionOrder[] = [];
-    autoProducts.forEach(p => {
-      const currentStock = p.estoque_atual || 0;
-      const needed = targetStock - currentStock;
-      
-      if (needed > 0) {
-        // Check if product exists in our catalog
-        const existingProduct = products.find(prod => prod.id === `omie-${p.codigo_produto}` || prod.name === p.descricao);
-        
-        if (existingProduct) {
-          newOrders.push({
-            id: Math.random().toString(36).substr(2, 9),
-            productId: existingProduct.id,
-            quantity: needed,
-            targetDate: format(addDays(new Date(), 7), 'yyyy-MM-dd'), // Default to 1 week from now
-            status: 'pending'
-          });
-        }
+    
+    createAutoOrdersMutation.mutate({
+      autoProducts,
+      targetStock,
+      existingProducts: products,
+      existingOrders: orders,
+      setOrders
+    }, {
+      onSuccess: () => {
+        setIsCreating(false);
+      },
+      onError: (err) => {
+        alert(err.message);
       }
     });
-
-    if (newOrders.length > 0) {
-      setOrders([...orders, ...newOrders]);
-      setIsCreating(false);
-    } else {
-      alert('Nenhum produto com estoque baixo encontrado para esta categoria.');
-    }
   };
 
   const openCreateOrder = () => {
@@ -353,16 +342,16 @@ export default function PlanningView() {
                       </div>
 
                       <button 
-                        onClick={handleAutoPlan}
-                        disabled={isLoadingAuto || !selectedFamily || !autoProducts}
-                        className="w-full bg-[#4A2C2A] text-white py-3 rounded-xl font-bold hover:bg-[#3A2220] transition-colors disabled:opacity-50 flex items-center justify-center"
-                      >
-                        {isLoadingAuto ? (
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          'Gerar Planejamento'
-                        )}
-                      </button>
+                          onClick={handleAutoPlan}
+                          disabled={isLoadingAuto || !selectedFamily || !autoProducts || createAutoOrdersMutation.isPending}
+                          className="w-full bg-[#4A2C2A] text-white py-3 rounded-xl font-bold hover:bg-[#3A2220] transition-colors disabled:opacity-50 flex items-center justify-center"
+                        >
+                          {isLoadingAuto || createAutoOrdersMutation.isPending ? (
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            'Gerar Planejamento'
+                          )}
+                        </button>
 
                       {autoProducts && autoProducts.length > 0 && (
                         <div className="space-y-3">

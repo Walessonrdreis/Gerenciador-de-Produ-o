@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Package, Plus, Trash2, AlertCircle, X, Layers, Settings, BarChart3 } from 'lucide-react';
 import { Product } from '../types';
 import { useAppStore } from '../store/useAppStore';
-import { useOmieProducts, useOmieFamilies } from '../api/omie/queries';
+import { useOmieProducts, useOmieFamilies, useImportOmieProducts } from '../api/omie/queries';
 import { cn } from '../lib/utils';
 
 export default function ProductsView() {
@@ -24,6 +24,7 @@ export default function ProductsView() {
 
   const { data: omieFamilies, isLoading: isLoadingOmieFamilies, error: omieFamiliesError } = useOmieFamilies({ enabled: isImporting });
   const { data: omieProducts, isLoading: isLoadingOmie, error: omieError } = useOmieProducts(1, omieSearch, omieFamilyFilter, { enabled: isImporting });
+  const importMutation = useImportOmieProducts();
 
   const handleAddProduct = () => {
     if (newProduct.name) {
@@ -61,22 +62,18 @@ export default function ProductsView() {
 
   const importSelectedFromOmie = () => {
     if (!omieProducts) return;
-    const toAdd = omieProducts
-      .filter(p => selectedOmieProducts.has(p.codigo_produto))
-      .filter(p => !products.some(existing => existing.id === `omie-${p.codigo_produto}` || existing.name === p.descricao))
-      .map(p => ({
-        id: `omie-${p.codigo_produto}`,
-        name: p.descricao,
-        capacityCost: 1, // Default capacity cost
-        materials: [] // Needs to be configured later
-      } as Product));
-
-    if (toAdd.length > 0) {
-      setProducts([...products, ...toAdd]);
-    }
     
-    setIsImporting(false);
-    clearOmieSelection();
+    importMutation.mutate({
+      omieProducts,
+      selectedCodes: selectedOmieProducts,
+      existingProducts: products,
+      setProducts
+    }, {
+      onSuccess: () => {
+        setIsImporting(false);
+        clearOmieSelection();
+      }
+    });
   };
 
   const openOmieImport = () => {
@@ -412,10 +409,14 @@ export default function ProductsView() {
               <div className="flex-1" />
               <button
                 onClick={importSelectedFromOmie}
-                disabled={selectedOmieProducts.size === 0}
-                className="bg-[#4A2C2A] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#3A2220] transition-colors disabled:opacity-50"
+                disabled={selectedOmieProducts.size === 0 || importMutation.isPending}
+                className="bg-[#4A2C2A] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#3A2220] transition-colors disabled:opacity-50 ml-auto flex items-center justify-center min-w-[140px]"
               >
-                Importar ({selectedOmieProducts.size})
+                {importMutation.isPending ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  `Importar ${selectedOmieProducts.size} item(s)`
+                )}
               </button>
             </div>
           </motion.div>
