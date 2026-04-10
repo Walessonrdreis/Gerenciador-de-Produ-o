@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { ProductionOrder } from '../types';
 import { useAppStore } from '../store/useAppStore';
-import { fetchOmieProducts, fetchOmieFamilies, OmieProduct, OmieFamily } from '../api/omieService';
+import { useOmieProducts, useOmieFamilies } from '../api/omie/queries';
 import { planProduction } from '../lib/planner';
 import { cn } from '../lib/utils';
 
@@ -33,45 +33,14 @@ export default function PlanningView() {
   
   // Manual Planning States
   const [manualOrder, setManualOrder] = useState({ productId: products[0]?.id || '', quantity: 10, date: format(new Date(), 'yyyy-MM-dd') });
-  const [families, setFamilies] = useState<OmieFamily[]>([]);
   const [selectedFamily, setSelectedFamily] = useState<number | null>(null);
-  const [isLoadingFamilies, setIsLoadingFamilies] = useState(false);
-  const [autoProducts, setAutoProducts] = useState<OmieProduct[]>([]);
-  const [isLoadingAuto, setIsLoadingAuto] = useState(false);
   const [targetStock, setTargetStock] = useState(50); // Default target stock to reach
 
-  useEffect(() => {
-    if (isCreating && createMode === 'auto') {
-      loadFamilies();
-    }
-  }, [isCreating, createMode]);
-
-  const loadFamilies = async () => {
-    setIsLoadingFamilies(true);
-    try {
-      const data = await fetchOmieFamilies();
-      setFamilies(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoadingFamilies(false);
-    }
-  };
-
-  const loadAutoProducts = async () => {
-    if (!selectedFamily) return;
-    setIsLoadingAuto(true);
-    try {
-      const data = await fetchOmieProducts(1, '', selectedFamily);
-      setAutoProducts(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoadingAuto(false);
-    }
-  };
+  const { data: families, isLoading: isLoadingFamilies } = useOmieFamilies({ enabled: isCreating && createMode === 'auto' });
+  const { data: autoProducts, isLoading: isLoadingAuto } = useOmieProducts(1, '', selectedFamily, { enabled: isCreating && createMode === 'auto' && selectedFamily !== null });
 
   const handleAutoPlan = () => {
+    if (!autoProducts) return;
     const newOrders: ProductionOrder[] = [];
     autoProducts.forEach(p => {
       const currentStock = p.estoque_atual || 0;
@@ -364,9 +333,10 @@ export default function PlanningView() {
                             className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
                             value={selectedFamily || ''}
                             onChange={(e) => setSelectedFamily(Number(e.target.value))}
+                            disabled={isLoadingFamilies}
                           >
                             <option value="">Selecione uma categoria...</option>
-                            {families.map(f => (
+                            {families?.map(f => (
                               <option key={f.codigo} value={f.codigo}>{f.nome}</option>
                             ))}
                           </select>
@@ -383,38 +353,42 @@ export default function PlanningView() {
                       </div>
 
                       <button 
-                        onClick={loadAutoProducts}
-                        disabled={!selectedFamily || isLoadingAuto}
-                        className="w-full bg-[#4A2C2A] text-white py-3 rounded-xl font-bold hover:bg-[#3A2220] transition-colors disabled:opacity-50"
+                        onClick={handleAutoPlan}
+                        disabled={isLoadingAuto || !selectedFamily || !autoProducts}
+                        className="w-full bg-[#4A2C2A] text-white py-3 rounded-xl font-bold hover:bg-[#3A2220] transition-colors disabled:opacity-50 flex items-center justify-center"
                       >
-                        {isLoadingAuto ? 'Consultando Omie...' : 'Analisar Estoque e Sugerir Produção'}
+                        {isLoadingAuto ? (
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          'Gerar Planejamento'
+                        )}
                       </button>
 
-                      {autoProducts.length > 0 && (
+                      {autoProducts && autoProducts.length > 0 && (
                         <div className="space-y-3">
                           <h4 className="font-bold text-sm uppercase tracking-wider text-[#8B5E3C]">Sugestões de Produção</h4>
-                          <div className="space-y-2">
+                          <div className="bg-[#FDFBF7] border border-[#E8DCC4] rounded-2xl p-4 max-h-[300px] overflow-y-auto">
                             {autoProducts.map(p => {
-                              const currentStock = p.estoque_atual || 0;
-                              const needed = targetStock - currentStock;
+                              const needed = targetStock - (p.estoque_atual || 0);
                               if (needed <= 0) return null;
-                              
                               return (
-                                <div key={p.codigo_produto} className="flex items-center justify-between p-3 bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl">
-                                  <div>
-                                    <p className="font-bold text-sm">{p.descricao}</p>
-                                    <p className="text-[10px] text-[#8B5E3C]">Estoque Atual: {currentStock} | Falta: {needed}</p>
+                                <div key={p.codigo_produto} className="flex justify-between items-center py-2 border-b border-[#F7F0E4] last:border-0">
+                                  <div className="flex-1 pr-4">
+                                    <p className="font-bold text-[#4A2C2A] truncate">{p.descricao}</p>
+                                    <p className="text-xs text-[#8B5E3C]">Estoque: {p.estoque_atual || 0} → Meta: {targetStock}</p>
                                   </div>
-                                  <span className="bg-[#4A2C2A] text-white px-3 py-1 rounded-lg text-xs font-bold">+{needed}</span>
+                                  <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-lg font-bold text-sm">
+                                    +{needed} un
+                                  </div>
                                 </div>
                               );
                             })}
                           </div>
-                          <button 
+                          <button
                             onClick={handleAutoPlan}
-                            className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-colors mt-4"
+                            className="w-full bg-[#4A2C2A] text-white py-3 rounded-xl font-bold hover:bg-[#3A2220] transition-colors"
                           >
-                            Confirmar e Gerar Planejamento
+                            Aprovar e Criar Pedidos
                           </button>
                         </div>
                       )}

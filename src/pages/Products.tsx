@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Package, Plus, Trash2, AlertCircle, X, Layers, Settings, BarChart3 } from 'lucide-react';
 import { Product } from '../types';
 import { useAppStore } from '../store/useAppStore';
-import { fetchOmieProducts, fetchOmieFamilies, OmieProduct, OmieFamily } from '../api/omieService';
+import { useOmieProducts, useOmieFamilies } from '../api/omie/queries';
 import { cn } from '../lib/utils';
 
 export default function ProductsView() {
@@ -16,16 +16,14 @@ export default function ProductsView() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [omieProducts, setOmieProducts] = useState<OmieProduct[]>([]);
-  const [omieFamilies, setOmieFamilies] = useState<OmieFamily[]>([]);
+  
   const [omieFamilyFilter, setOmieFamilyFilter] = useState<number | null>(null);
   const [omieSearch, setOmieSearch] = useState('');
-  const [isLoadingOmie, setIsLoadingOmie] = useState(false);
-  const [isLoadingOmieFamilies, setIsLoadingOmieFamilies] = useState(false);
-  const [omieError, setOmieError] = useState<string | null>(null);
-  const [omieFamiliesError, setOmieFamiliesError] = useState<string | null>(null);
   const [selectedOmieProducts, setSelectedOmieProducts] = useState<Set<number>>(new Set());
   const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', capacityCost: 1, materials: [] });
+
+  const { data: omieFamilies, isLoading: isLoadingOmieFamilies, error: omieFamiliesError } = useOmieFamilies({ enabled: isImporting });
+  const { data: omieProducts, isLoading: isLoadingOmie, error: omieError } = useOmieProducts(1, omieSearch, omieFamilyFilter, { enabled: isImporting });
 
   const handleAddProduct = () => {
     if (newProduct.name) {
@@ -42,39 +40,6 @@ export default function ProductsView() {
     }
   };
 
-  const loadOmieProducts = async (overrides?: { search?: string; family?: number | null }) => {
-    setIsLoadingOmie(true);
-    setOmieError(null);
-    try {
-      const effectiveSearch = overrides?.search ?? omieSearch;
-      const effectiveFamily = overrides?.family ?? omieFamilyFilter;
-      const data = await fetchOmieProducts(1, effectiveSearch, effectiveFamily || undefined);
-      setOmieProducts(data);
-    } catch (error) {
-      console.error(error);
-      setOmieError(error instanceof Error ? error.message : 'Erro ao carregar produtos do Omie.');
-    } finally {
-      setIsLoadingOmie(false);
-    }
-  };
-
-  const loadOmieFamilies = async () => {
-    setIsLoadingOmieFamilies(true);
-    setOmieFamiliesError(null);
-    try {
-      const data = await fetchOmieFamilies();
-      setOmieFamilies(data);
-      if (data.length === 0) {
-        setOmieFamiliesError('Nenhuma categoria retornada pelo Omie.');
-      }
-    } catch (error) {
-      console.error(error);
-      setOmieFamiliesError(error instanceof Error ? error.message : 'Erro ao carregar categorias do Omie.');
-    } finally {
-      setIsLoadingOmieFamilies(false);
-    }
-  };
-
   const toggleOmieSelection = (code: number) => {
     setSelectedOmieProducts(prev => {
       const next = new Set(prev);
@@ -85,7 +50,9 @@ export default function ProductsView() {
   };
 
   const selectAllOmieProducts = () => {
-    setSelectedOmieProducts(new Set(omieProducts.map(p => p.codigo_produto)));
+    if (omieProducts) {
+      setSelectedOmieProducts(new Set(omieProducts.map(p => p.codigo_produto)));
+    }
   };
 
   const clearOmieSelection = () => {
@@ -93,6 +60,7 @@ export default function ProductsView() {
   };
 
   const importSelectedFromOmie = () => {
+    if (!omieProducts) return;
     const toAdd = omieProducts
       .filter(p => selectedOmieProducts.has(p.codigo_produto))
       .filter(p => !products.some(existing => existing.id === `omie-${p.codigo_produto}` || existing.name === p.descricao))
@@ -111,10 +79,9 @@ export default function ProductsView() {
     clearOmieSelection();
   };
 
-  const openOmieImport = async () => {
+  const openOmieImport = () => {
     setIsImporting(true);
     clearOmieSelection();
-    await Promise.all([loadOmieFamilies(), loadOmieProducts()]);
   };
 
   return (
@@ -326,7 +293,6 @@ export default function ProductsView() {
                   placeholder="Buscar por nome..."
                   value={omieSearch}
                   onChange={(e) => setOmieSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && loadOmieProducts()}
                   className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
                 />
                 <BarChart3 size={18} className="absolute left-3 top-2.5 text-[#8B5E3C]" />
@@ -337,21 +303,14 @@ export default function ProductsView() {
                 onChange={(e) => {
                   const value = e.target.value ? Number(e.target.value) : null;
                   setOmieFamilyFilter(value);
-                  loadOmieProducts({ family: value });
                 }}
                 disabled={isLoadingOmieFamilies}
               >
                 <option value="">Todas as categorias</option>
-                {omieFamilies.map(f => (
+                {omieFamilies?.map(f => (
                   <option key={f.codigo} value={f.codigo}>{f.nome}</option>
                 ))}
               </select>
-              <button 
-                onClick={loadOmieProducts}
-                className="bg-[#4A2C2A] text-white px-6 py-2 rounded-xl font-medium hover:bg-[#3A2220] transition-colors"
-              >
-                Buscar
-              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-2">
@@ -360,45 +319,32 @@ export default function ProductsView() {
                   <AlertCircle size={20} />
                   <div className="flex-1">
                     <p className="text-sm font-bold">Categorias do Omie</p>
-                    <p className="text-xs mt-0.5 break-words">{omieFamiliesError}</p>
-                    <button
-                      onClick={loadOmieFamilies}
-                      className="mt-2 bg-white border border-amber-200 text-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
-                    >
-                      Recarregar categorias
-                    </button>
+                    <p className="text-xs mt-0.5 break-words">{omieFamiliesError.message}</p>
                   </div>
                 </div>
               )}
               {omieError && (
                 <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl flex items-center gap-3 mb-4">
                   <AlertCircle size={20} />
-                  <p className="text-sm">{omieError}</p>
+                  <p className="text-sm">{omieError.message}</p>
                 </div>
               )}
-              {!isLoadingOmie && !omieError && omieProducts.length === 0 && (omieSearch.trim() || omieFamilyFilter) && (
+              {!isLoadingOmie && !omieError && omieProducts?.length === 0 && (omieSearch.trim() || omieFamilyFilter) && (
                 <div className="bg-amber-50 border border-amber-200 text-amber-700 p-4 rounded-xl flex items-center gap-3 mb-4">
                   <AlertCircle size={20} />
                   <div className="flex-1">
                     <p className="text-sm font-bold">Filtro não retornou produtos</p>
                     <p className="text-xs mt-0.5 break-words">
-                      {omieFamilyFilter ? `Categoria: ${omieFamilies.find(f => f.codigo === omieFamilyFilter)?.nome || '—'} (${omieFamilyFilter})` : 'Categoria: todas'}{omieSearch.trim() ? ` | Busca: "${omieSearch.trim()}"` : ''}
+                      {omieFamilyFilter ? `Categoria: ${omieFamilies?.find(f => f.codigo === omieFamilyFilter)?.nome || '—'} (${omieFamilyFilter})` : 'Categoria: todas'}{omieSearch.trim() ? ` | Busca: "${omieSearch.trim()}"` : ''}
                     </p>
                     <div className="flex gap-2 mt-2 flex-wrap">
                       <button
                         onClick={() => {
                           setOmieFamilyFilter(null);
-                          loadOmieProducts({ family: null });
                         }}
                         className="bg-white border border-amber-200 text-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
                       >
                         Buscar sem categoria
-                      </button>
-                      <button
-                        onClick={loadOmieProducts}
-                        className="bg-white border border-amber-200 text-amber-800 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
-                      >
-                        Tentar novamente
                       </button>
                     </div>
                   </div>
@@ -410,25 +356,25 @@ export default function ProductsView() {
                   <div className="w-8 h-8 border-4 border-[#4A2C2A] border-t-transparent rounded-full animate-spin mb-4" />
                   <p>Carregando produtos do Omie...</p>
                 </div>
-              ) : omieProducts.length === 0 ? (
+              ) : omieProducts?.length === 0 ? (
                 <div className="text-center py-12 text-[#8B5E3C]">Nenhum produto encontrado.</div>
               ) : (
-                omieProducts.map(p => (
+                omieProducts?.map(p => (
                   <div
                     key={p.codigo_produto}
                     onClick={() => toggleOmieSelection(p.codigo_produto)}
                     className={cn(
-                      "w-full flex items-center justify-between p-4 bg-[#FDFBF7] border rounded-2xl transition-colors group text-left",
-                      selectedOmieProducts.has(p.codigo_produto) ? "border-[#4A2C2A]" : "border-[#E8DCC4] hover:border-[#4A2C2A]"
+                      "w-full flex items-center justify-between p-4 bg-[#FDFBF7] border rounded-2xl transition-colors group text-left cursor-pointer",
+                      selectedOmieProducts.has(p.codigo_produto) ? "border-[#4A2C2A] shadow-md shadow-[#4A2C2A]/10" : "border-[#E8DCC4] hover:border-[#4A2C2A]"
                     )}
                   >
                     <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
                         checked={selectedOmieProducts.has(p.codigo_produto)}
-                        onClick={(e) => e.stopPropagation()}
                         onChange={() => toggleOmieSelection(p.codigo_produto)}
-                        className="mt-1 h-4 w-4"
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-1 h-4 w-4 rounded border-[#E8DCC4] text-[#4A2C2A] focus:ring-[#4A2C2A]"
                       />
                       <div>
                         <p className="font-bold text-[#4A2C2A]">{p.descricao}</p>
