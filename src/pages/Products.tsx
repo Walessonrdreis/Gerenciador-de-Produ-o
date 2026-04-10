@@ -10,6 +10,7 @@ export default function ProductsView() {
   const products = useAppStore(state => state.products);
   const setProducts = useAppStore(state => state.setProducts);
   const materials = useAppStore(state => state.materials);
+  const sectors = useAppStore(state => state.sectors);
   const addProduct = useAppStore(state => state.addProduct);
   const updateProduct = useAppStore(state => state.updateProduct);
   const removeProduct = useAppStore(state => state.removeProduct);
@@ -20,7 +21,7 @@ export default function ProductsView() {
   const [omieFamilyFilter, setOmieFamilyFilter] = useState<number | null>(null);
   const [omieSearch, setOmieSearch] = useState('');
   const [selectedOmieProducts, setSelectedOmieProducts] = useState<Set<number>>(new Set());
-  const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', capacityCost: 1, materials: [] });
+  const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', capacityCost: 1, materials: [], flow: sectors.map(s => s.id) });
 
   const { data: omieFamilies, isLoading: isLoadingOmieFamilies, error: omieFamiliesError } = useOmieFamilies({ enabled: isImporting });
   const { data: omieProducts, isLoading: isLoadingOmie, error: omieError } = useOmieProducts(1, omieSearch, omieFamilyFilter, { enabled: isImporting });
@@ -30,7 +31,7 @@ export default function ProductsView() {
     if (newProduct.name) {
       addProduct({ ...newProduct, id: Math.random().toString(36).substr(2, 9) } as Product);
       setIsAdding(false);
-      setNewProduct({ name: '', capacityCost: 1, materials: [] });
+      setNewProduct({ name: '', capacityCost: 1, materials: [], flow: sectors.map(s => s.id) });
     }
   };
 
@@ -38,6 +39,22 @@ export default function ProductsView() {
     if (editingProduct) {
       updateProduct(editingProduct);
       setEditingProduct(null);
+    }
+  };
+
+  const toggleSectorInFlow = (sectorId: string, currentFlow: string[] | undefined, updater: (newFlow: string[]) => void) => {
+    const flow = currentFlow || sectors.map(s => s.id); // fallback se não tiver flow
+    if (flow.includes(sectorId)) {
+      updater(flow.filter(id => id !== sectorId));
+    } else {
+      // Adiciona na ordem correta baseada no array original de setores
+      const newFlow = [...flow, sectorId];
+      newFlow.sort((a, b) => {
+        const indexA = sectors.findIndex(s => s.id === a);
+        const indexB = sectors.findIndex(s => s.id === b);
+        return indexA - indexB;
+      });
+      updater(newFlow);
     }
   };
 
@@ -129,6 +146,21 @@ export default function ProductsView() {
             </div>
             <h4 className="font-bold text-lg">{product.name}</h4>
             <p className="text-sm text-[#8B5E3C] mb-4">Custo de Capacidade: {product.capacityCost} un/dia</p>
+            <div className="space-y-2 mb-4">
+              <p className="text-[10px] font-bold text-[#8B5E3C] uppercase tracking-wider">Fluxo de Produção</p>
+              <div className="flex flex-wrap gap-2">
+                {(product.flow || sectors.map(s => s.id)).map(sectorId => {
+                  const s = sectors.find(sec => sec.id === sectorId);
+                  if (!s) return null;
+                  return (
+                    <span key={sectorId} className="px-2 py-1 bg-[#F7F0E4] text-[#8B5E3C] text-[10px] font-bold rounded-lg border border-[#E8DCC4]">
+                      {s.name}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <p className="text-[10px] font-bold text-[#8B5E3C] uppercase tracking-wider">Ingredientes</p>
               {product.materials.map(m => {
@@ -172,6 +204,50 @@ export default function ProductsView() {
                   onChange={(e) => setNewProduct({...newProduct, capacityCost: Number(e.target.value)})}
                   className="w-full bg-[#FDFBF7] border border-[#E8DCC4] rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4A2C2A]/20"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#8B5E3C] mb-2">Fluxo de Produção</label>
+                <div className="flex flex-wrap gap-2">
+                  {sectors.map(sector => {
+                    const isSelected = (newProduct.flow || []).includes(sector.id);
+                    return (
+                      <button
+                        key={sector.id}
+                        onClick={() => toggleSectorInFlow(sector.id, newProduct.flow, (flow) => setNewProduct({ ...newProduct, flow }))}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors",
+                          isSelected 
+                            ? "bg-[#4A2C2A] text-white border-[#4A2C2A]" 
+                            : "bg-[#FDFBF7] text-[#8B5E3C] border-[#E8DCC4] hover:border-[#4A2C2A]"
+                        )}
+                      >
+                        {sector.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#8B5E3C] mb-2">Fluxo de Produção</label>
+                <div className="flex flex-wrap gap-2">
+                  {sectors.map(sector => {
+                    const isSelected = (editingProduct.flow || sectors.map(s => s.id)).includes(sector.id);
+                    return (
+                      <button
+                        key={sector.id}
+                        onClick={() => toggleSectorInFlow(sector.id, editingProduct.flow, (flow) => setEditingProduct({ ...editingProduct, flow }))}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors",
+                          isSelected 
+                            ? "bg-[#4A2C2A] text-white border-[#4A2C2A]" 
+                            : "bg-[#FDFBF7] text-[#8B5E3C] border-[#E8DCC4] hover:border-[#4A2C2A]"
+                        )}
+                      >
+                        {sector.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div className="flex gap-4 mt-8">
                 <button 

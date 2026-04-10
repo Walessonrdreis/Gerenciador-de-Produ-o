@@ -13,6 +13,7 @@ export interface Product {
     materialId: string;
     amount: number;
   }[];
+  flow?: string[]; // Array of Sector IDs in order
 }
 
 export interface ProductionOrder {

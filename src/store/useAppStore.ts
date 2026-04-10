@@ -46,6 +46,13 @@ const INITIAL_MATERIALS: RawMaterial[] = [
   { id: '4', name: 'Manteiga de Cacau', unit: 'kg', stock: 150 },
 ];
 
+const INITIAL_SECTORS: Sector[] = [
+  { id: '1', name: 'Refino', order: 1, capacity: { daily: 100 } },
+  { id: '2', name: 'Temperagem', order: 2, capacity: { daily: 100 } },
+  { id: '3', name: 'Confeitaria', order: 3, capacity: { daily: 100 } },
+  { id: '4', name: 'Embalagem', order: 4, capacity: { daily: 100 } },
+];
+
 const INITIAL_PRODUCTS: Product[] = [
   { 
     id: '1', 
@@ -54,7 +61,8 @@ const INITIAL_PRODUCTS: Product[] = [
     materials: [
       { materialId: '1', amount: 0.7 },
       { materialId: '4', amount: 0.3 }
-    ] 
+    ],
+    flow: ['1', '2', '3', '4'] 
   },
   { 
     id: '2', 
@@ -64,7 +72,8 @@ const INITIAL_PRODUCTS: Product[] = [
       { materialId: '1', amount: 0.3 },
       { materialId: '2', amount: 0.4 },
       { materialId: '3', amount: 0.3 }
-    ] 
+    ],
+    flow: ['1', '2', '3', '4'] 
   },
 ];
 
@@ -73,13 +82,6 @@ const INITIAL_CONFIG: FactoryConfig = {
   workDays: [1, 2, 3, 4, 5],
   holidays: ['2026-04-21', '2026-05-01'],
 };
-
-const INITIAL_SECTORS: Sector[] = [
-  { id: '1', name: 'Refino', order: 1, capacity: { daily: 100 } },
-  { id: '2', name: 'Temperagem', order: 2, capacity: { daily: 100 } },
-  { id: '3', name: 'Confeitaria', order: 3, capacity: { daily: 100 } },
-  { id: '4', name: 'Embalagem', order: 4, capacity: { daily: 100 } },
-];
 
 export const useAppStore = create<AppState>((set) => ({
   // Initial State
@@ -135,11 +137,20 @@ export const useAppStore = create<AppState>((set) => ({
   setConfig: (config) => set({ config }),
   
   // Reset/Load Entire State
-  hydrateState: (data: Partial<AppState>) => set((state) => ({
-    products: data.products || state.products,
-    materials: data.materials || state.materials,
-    orders: data.orders || state.orders,
-    config: data.config || state.config,
-    sectors: data.sectors || state.sectors
-  }))
+  hydrateState: (data: Partial<AppState>) => set((state) => {
+    // Fallback: garante que produtos antigos ganhem um fluxo completo caso não tenham
+    const allSectorIds = data.sectors ? data.sectors.map(s => s.id) : state.sectors.map(s => s.id);
+    const hydratedProducts = (data.products || state.products).map(p => ({
+      ...p,
+      flow: p.flow && p.flow.length > 0 ? p.flow : allSectorIds
+    }));
+
+    return {
+      products: hydratedProducts,
+      materials: data.materials || state.materials,
+      orders: data.orders || state.orders,
+      config: data.config || state.config,
+      sectors: data.sectors || state.sectors
+    };
+  })
 }));
