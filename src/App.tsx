@@ -2,8 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import DashboardView from './pages/Dashboard';
 import ProductsView from './pages/Products';
-import MaterialsView from './pages/Materials';
-import OrdersView from './pages/Orders';
+// import MaterialsView from './pages/Materials';
+// import OrdersView from './pages/Orders';
 import ScheduleView from './pages/Schedule';
 import PlanningView from './pages/Planning';
 import SectorsView from './pages/Sectors';
@@ -17,8 +17,8 @@ export default function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<DashboardView />} />
             <Route path="produtos" element={<ProductsView />} />
-            <Route path="materiais" element={<MaterialsView />} />
-            <Route path="pedidos" element={<OrdersView />} />
+            {/* <Route path="materiais" element={<MaterialsView />} /> */}
+            {/* <Route path="pedidos" element={<OrdersView />} /> */}
             <Route path="cronograma" element={<ScheduleView />} />
             <Route path="planejamento" element={<PlanningView />} />
             <Route path="setores" element={<SectorsView />} />

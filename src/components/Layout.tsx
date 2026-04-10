@@ -33,8 +33,8 @@ export default function Layout() {
   const navItems = [
     { to: '/', icon: <BarChart3 size={20} />, label: 'Dashboard' },
     { to: '/produtos', icon: <Package size={20} />, label: 'Produtos' },
-    { to: '/materiais', icon: <Layers size={20} />, label: 'Matéria-Prima' },
-    { to: '/pedidos', icon: <ShoppingCart size={20} />, label: 'Pedidos' },
+    // { to: '/materiais', icon: <Layers size={20} />, label: 'Matéria-Prima' },
+    // { to: '/pedidos', icon: <ShoppingCart size={20} />, label: 'Pedidos' },
     { to: '/cronograma', icon: <CalendarIcon size={20} />, label: 'Cronograma' },
     { to: '/planejamento', icon: <BarChart3 size={20} />, label: 'Planejamento' },
     { to: '/setores', icon: <Settings size={20} />, label: 'Setores' },
