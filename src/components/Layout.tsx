@@ -99,11 +99,11 @@ export default function Layout() {
         initial={false}
         animate={{ x: (isSidebarOpen || window.innerWidth >= 768) ? 0 : -256 }}
         className={cn(
-          "fixed md:sticky left-0 top-0 h-screen w-64 bg-white border-r border-[#E8DCC4] p-6 z-50 no-print shadow-2xl md:shadow-none shrink-0",
+          "fixed md:sticky left-0 top-0 h-screen w-64 bg-white border-r border-[#E8DCC4] p-6 z-50 no-print shadow-2xl md:shadow-none shrink-0 flex flex-col",
           !isSidebarOpen && "hidden md:block"
         )}
       >
-        <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center justify-between mb-8 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#4A2C2A] rounded-xl flex items-center justify-center text-white">
               <Factory size={24} />
@@ -118,7 +118,7 @@ export default function Layout() {
           </button>
         </div>
 
-        <nav className="space-y-2">
+        <nav className="space-y-2 flex-1 overflow-y-auto pr-2 -mr-2">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -146,7 +146,7 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="absolute bottom-6 left-6 right-6">
+        <div className="mt-6 shrink-0">
           <div className="p-4 bg-[#F7F0E4] rounded-2xl border border-[#E8DCC4]">
             <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-[#8B5E3C] uppercase tracking-wider">
               <Settings size={14} />
@@ -154,7 +154,7 @@ export default function Layout() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] text-[#8B5E3C] font-medium block mb-1">Capacidade Diária</label>
+                <label className="text-[10px] text-[#8B5E3C] font-medium block mb-1">Capacidade Diária (Global)</label>
                 <input 
                   type="number" 
                   value={config.dailyCapacity}

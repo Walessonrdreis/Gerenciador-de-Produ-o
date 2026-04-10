@@ -47,7 +47,7 @@ export default function SectorsView() {
       </div>
 
       <div className="bg-white rounded-3xl border border-[#E8DCC4] p-6 shadow-sm">
-        {sectors.length === 0 ? (
+        {!sectors || sectors.length === 0 ? (
           <div className="text-center py-12 text-[#8B5E3C]">
             <Settings size={48} className="mx-auto mb-4 opacity-20" />
             <p>Nenhum setor cadastrado.</p>
@@ -59,7 +59,12 @@ export default function SectorsView() {
             onReorder={reorderSectors} 
             className="space-y-3"
           >
-            {sectors.map((sector) => (
+            {sectors.map((sector) => {
+              if (!sector || !sector.id) return null;
+              
+              const currentDaily = sector.capacity?.daily ?? 100;
+              
+              return (
               <Reorder.Item 
                 key={sector.id} 
                 value={sector}
@@ -77,7 +82,7 @@ export default function SectorsView() {
                       <input 
                         type="number"
                         min="1"
-                        value={sector.capacity.daily}
+                        value={currentDaily}
                         onChange={(e) => updateSector({ ...sector, capacity: { daily: Number(e.target.value) || 1 } })}
                         className="w-16 bg-transparent text-right font-bold text-[#4A2C2A] focus:outline-none"
                       />
@@ -96,7 +101,7 @@ export default function SectorsView() {
                   <Trash2 size={20} />
                 </button>
               </Reorder.Item>
-            ))}
+            )})}
           </Reorder.Group>
         )}
       </div>

@@ -135,11 +135,26 @@ export const useAppStore = create<AppState>((set) => ({
   setConfig: (config) => set({ config }),
   
   // Reset/Load Entire State
-  hydrateState: (data: Partial<AppState>) => set((state) => ({
-    products: data.products || state.products,
-    materials: data.materials || state.materials,
-    orders: data.orders || state.orders,
-    config: data.config || state.config,
-    sectors: data.sectors || state.sectors
-  }))
+  hydrateState: (data: Partial<AppState>) => set((state) => {
+    // Migrate legacy sectors that might not have capacity
+    // E também filta elementos nulos ou mal formatados que podem ter entrado no cache.
+    let hydratedSectors = state.sectors;
+    
+    if (data.sectors && Array.isArray(data.sectors)) {
+      hydratedSectors = data.sectors
+        .filter(s => s && typeof s === 'object' && s.id) // Ignora items vazios/nulos
+        .map(s => ({
+          ...s,
+          capacity: s.capacity || { daily: 100 }
+        }));
+    }
+
+    return {
+      products: data.products || state.products,
+      materials: data.materials || state.materials,
+      orders: data.orders || state.orders,
+      config: data.config || state.config,
+      sectors: hydratedSectors
+    };
+  })
 }));
