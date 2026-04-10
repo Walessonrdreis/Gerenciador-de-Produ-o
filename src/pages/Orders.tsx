@@ -1,23 +1,16 @@
-import React, { useState, useMemo } from 'react';
-import { format, parseISO, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, eachDayOfInterval } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import React, { useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Factory, Package, ShoppingCart, Calendar as CalendarIcon, 
-  Settings, Plus, Trash2, ChevronRight, AlertCircle, 
-  CheckCircle2, Printer, BarChart3, Layers, Menu, X 
-} from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Cell 
-} from 'recharts';
-import { cn } from '../lib/utils';
-import { Product, RawMaterial, ProductionOrder, FactoryConfig, ScheduledDay } from '../types';
-import { useFactory } from '../store/FactoryContext';
-import { fetchOmieProducts, fetchOmieFamilies, OmieProduct, OmieFamily } from '../services/omieService';
+import { ShoppingCart, Plus, Trash2, X } from 'lucide-react';
+import { ProductionOrder } from '../types';
+import { useAppStore } from '../store/useAppStore';
 
 export default function OrdersView() {
-  const { orders, products, addOrder, removeOrder } = useFactory();
+  const orders = useAppStore(state => state.orders);
+  const products = useAppStore(state => state.products);
+  const addOrder = useAppStore(state => state.addOrder);
+  const removeOrder = useAppStore(state => state.removeOrder);
+  const updateOrder = useAppStore(state => state.updateOrder);
   const [isAdding, setIsAdding] = useState(false);
   const [newOrder, setNewOrder] = useState({ productId: products[0]?.id || '', quantity: 10, date: format(new Date(), 'yyyy-MM-dd') });
 

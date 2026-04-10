@@ -1,23 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import { format, parseISO, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, eachDayOfInterval } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Factory, Package, ShoppingCart, Calendar as CalendarIcon, 
-  Settings, Plus, Trash2, ChevronRight, AlertCircle, 
-  CheckCircle2, Printer, BarChart3, Layers, Menu, X 
-} from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Cell 
-} from 'recharts';
-import { cn } from '../lib/utils';
-import { Product, RawMaterial, ProductionOrder, FactoryConfig, ScheduledDay } from '../types';
-import { useFactory } from '../store/FactoryContext';
-import { fetchOmieProducts, fetchOmieFamilies, OmieProduct, OmieFamily } from '../services/omieService';
+import React, { useMemo } from 'react';
+import { format, parseISO } from 'date-fns';
+import { ShoppingCart, Calendar as CalendarIcon, AlertCircle, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { useAppStore } from '../store/useAppStore';
+import { planProduction } from '../lib/planner';
 
 export default function DashboardView() {
-  const { schedule, config, materials, orders } = useFactory();
+  const products = useAppStore(state => state.products);
+  const materials = useAppStore(state => state.materials);
+  const orders = useAppStore(state => state.orders);
+  const config = useAppStore(state => state.config);
+  
+  const schedule = useMemo(() => planProduction(orders, products, materials, config), [orders, products, materials, config]);
   const chartData = useMemo(() => {
     return schedule.slice(0, 14).map(day => ({
       name: format(parseISO(day.date), 'dd/MM'),

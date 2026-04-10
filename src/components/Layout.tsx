@@ -7,12 +7,15 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
-import { useFactory } from '../store/FactoryContext';
+import { useAppStore } from '../store/useAppStore';
+import { useAutoSave } from '../hooks/useAutoSave';
 
 export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
-  const { config, setConfig, saveStatus, saveMessage, lastSavedAt, saveNow, setSaveStatus } = useFactory();
+  const config = useAppStore(state => state.config);
+  const setConfig = useAppStore(state => state.setConfig);
+  const { saveStatus, saveMessage, lastSavedAt, saveNow, setSaveStatus } = useAutoSave();
 
   const getPageTitle = () => {
     switch (location.pathname) {

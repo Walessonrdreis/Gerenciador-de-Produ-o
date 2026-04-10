@@ -1,23 +1,28 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { format, parseISO, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, eachDayOfInterval } from 'date-fns';
+import { format, parseISO, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Factory, Package, ShoppingCart, Calendar as CalendarIcon, 
-  Settings, Plus, Trash2, ChevronRight, AlertCircle, 
-  CheckCircle2, Printer, BarChart3, Layers, Menu, X 
+  Calendar as CalendarIcon, 
+  Settings, Plus, X, Package, Trash2, Printer
 } from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Cell 
-} from 'recharts';
+import { ProductionOrder } from '../types';
+import { useAppStore } from '../store/useAppStore';
+import { fetchOmieProducts, fetchOmieFamilies, OmieProduct, OmieFamily } from '../api/omieService';
+import { planProduction } from '../lib/planner';
 import { cn } from '../lib/utils';
-import { Product, RawMaterial, ProductionOrder, FactoryConfig, ScheduledDay } from '../types';
-import { useFactory } from '../store/FactoryContext';
-import { fetchOmieProducts, fetchOmieFamilies, OmieProduct, OmieFamily } from '../services/omieService';
 
 export default function PlanningView() {
-  const { schedule, products, orders, setOrders, materials, addOrder } = useFactory();
+  const products = useAppStore(state => state.products);
+  const materials = useAppStore(state => state.materials);
+  const orders = useAppStore(state => state.orders);
+  const config = useAppStore(state => state.config);
+  const updateOrder = useAppStore(state => state.updateOrder);
+  const removeOrder = useAppStore(state => state.removeOrder);
+  const addOrder = useAppStore(state => state.addOrder);
+  const setOrders = useAppStore(state => state.setOrders);
+  
+  const schedule = useMemo(() => planProduction(orders, products, materials, config), [orders, products, materials, config]);
   const [viewType, setViewType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isCreating, setIsCreating] = useState(false);
@@ -113,22 +118,26 @@ export default function PlanningView() {
   const saveOrder = () => {
     if (!orderDraft.productId || !orderDraft.date || !orderDraft.quantity) return;
     if (editingOrderId) {
-      setOrders(prev => prev.map(o => o.id === editingOrderId ? { ...o, productId: orderDraft.productId, quantity: Number(orderDraft.quantity), targetDate: orderDraft.date, status: 'pending' } : o));
+      const order = orders.find(o => o.id === editingOrderId);
+      if (order) {
+        updateOrder({
+          ...order,
+          productId: orderDraft.productId,
+          quantity: Number(orderDraft.quantity),
+          targetDate: orderDraft.date,
+          status: 'pending'
+        });
+      }
     } else {
-      const newOrder: ProductionOrder = {
-        id: Math.random().toString(36).substr(2, 9),
-        productId: orderDraft.productId,
-        quantity: Number(orderDraft.quantity),
-        targetDate: orderDraft.date,
-        status: 'pending'
-      };
-      setOrders(prev => [...prev, newOrder]);
+      addOrder(orderDraft.productId, Number(orderDraft.quantity), orderDraft.date);
     }
     setIsEditingOrder(false);
   };
 
   const deleteOrder = (orderId: string) => {
-    setOrders(prev => prev.filter(o => o.id !== orderId));
+    if (window.confirm('Tem certeza que deseja remover este pedido do planejamento?')) {
+      removeOrder(orderId);
+    }
   };
 
   const filteredSchedule = useMemo(() => {

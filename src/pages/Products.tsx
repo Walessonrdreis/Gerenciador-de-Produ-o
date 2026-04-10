@@ -1,23 +1,18 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { format, parseISO, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, eachDayOfInterval } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Factory, Package, ShoppingCart, Calendar as CalendarIcon, 
-  Settings, Plus, Trash2, ChevronRight, AlertCircle, 
-  CheckCircle2, Printer, BarChart3, Layers, Menu, X 
-} from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Cell 
-} from 'recharts';
+import { Package, Plus, Trash2, AlertCircle, X, Layers, Settings, BarChart3 } from 'lucide-react';
+import { Product } from '../types';
+import { useAppStore } from '../store/useAppStore';
+import { fetchOmieProducts, fetchOmieFamilies, OmieProduct, OmieFamily } from '../api/omieService';
 import { cn } from '../lib/utils';
-import { Product, RawMaterial, ProductionOrder, FactoryConfig, ScheduledDay } from '../types';
-import { useFactory } from '../store/FactoryContext';
-import { fetchOmieProducts, fetchOmieFamilies, OmieProduct, OmieFamily } from '../services/omieService';
 
 export default function ProductsView() {
-  const { products, setProducts, materials } = useFactory();
+  const products = useAppStore(state => state.products);
+  const setProducts = useAppStore(state => state.setProducts);
+  const materials = useAppStore(state => state.materials);
+  const addProduct = useAppStore(state => state.addProduct);
+  const updateProduct = useAppStore(state => state.updateProduct);
+  const removeProduct = useAppStore(state => state.removeProduct);
   const [isAdding, setIsAdding] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -34,7 +29,7 @@ export default function ProductsView() {
 
   const handleAddProduct = () => {
     if (newProduct.name) {
-      setProducts([...products, { ...newProduct, id: Math.random().toString(36).substr(2, 9) } as Product]);
+      addProduct({ ...newProduct, id: Math.random().toString(36).substr(2, 9) } as Product);
       setIsAdding(false);
       setNewProduct({ name: '', capacityCost: 1, materials: [] });
     }
@@ -42,7 +37,7 @@ export default function ProductsView() {
 
   const handleUpdateProduct = () => {
     if (editingProduct) {
-      setProducts(products.map(p => p.id === editingProduct.id ? editingProduct : p));
+      updateProduct(editingProduct);
       setEditingProduct(null);
     }
   };
@@ -98,22 +93,22 @@ export default function ProductsView() {
   };
 
   const importSelectedFromOmie = () => {
-    setProducts(prev => {
-      const existingIds = new Set(prev.map(p => p.id));
-      const toImport = omieProducts
-        .filter(p => selectedOmieProducts.has(p.codigo_produto))
-        .map((omieProd): Product => ({
-          id: `omie-${omieProd.codigo_produto}`,
-          name: omieProd.descricao,
-          capacityCost: 1,
-          materials: []
-        }))
-        .filter(p => !existingIds.has(p.id));
+    const toAdd = omieProducts
+      .filter(p => selectedOmieProducts.has(p.codigo_produto))
+      .filter(p => !products.some(existing => existing.id === `omie-${p.codigo_produto}` || existing.name === p.descricao))
+      .map(p => ({
+        id: `omie-${p.codigo_produto}`,
+        name: p.descricao,
+        capacityCost: 1, // Default capacity cost
+        materials: [] // Needs to be configured later
+      } as Product));
 
-      return toImport.length > 0 ? [...prev, ...toImport] : prev;
-    });
-    clearOmieSelection();
+    if (toAdd.length > 0) {
+      setProducts([...products, ...toAdd]);
+    }
+    
     setIsImporting(false);
+    clearOmieSelection();
   };
 
   const openOmieImport = async () => {
@@ -155,7 +150,11 @@ export default function ProductsView() {
                 <Settings size={18} />
               </button>
               <button 
-                onClick={() => setProducts(products.filter(p => p.id !== product.id))}
+                onClick={() => {
+                  if (window.confirm('Tem certeza que deseja excluir este produto?')) {
+                    removeProduct(product.id);
+                  }
+                }}
                 className="text-red-400 hover:text-red-600"
               >
                 <Trash2 size={18} />
