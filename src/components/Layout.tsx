@@ -15,7 +15,7 @@ export default function Layout() {
   const location = useLocation();
   const config = useAppStore(state => state.config);
   const setConfig = useAppStore(state => state.setConfig);
-  const { saveStatus, saveMessage, lastSavedAt, saveNow, setSaveStatus } = useAutoSave();
+  const { isSaving, error, lastSavedAt, saveNow, clearError } = useAutoSave();
 
   const getPageTitle = () => {
     switch (location.pathname) {
@@ -41,26 +41,26 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#2D1B08] font-sans flex">
       <div className="fixed bottom-4 right-4 z-50 no-print">
-        {saveStatus !== 'idle' && (
+        {(isSaving || error || lastSavedAt) && (
           <div className="bg-white border border-[#E8DCC4] shadow-lg rounded-2xl px-4 py-3 flex items-start gap-3 max-w-sm">
-            {saveStatus === 'saving' ? (
+            {isSaving ? (
               <div className="w-5 h-5 border-2 border-[#4A2C2A] border-t-transparent rounded-full animate-spin mt-0.5" />
-            ) : saveStatus === 'saved' ? (
-              <CheckCircle2 size={20} className="text-green-600 mt-0.5" />
-            ) : (
+            ) : error ? (
               <AlertCircle size={20} className="text-red-600 mt-0.5" />
+            ) : (
+              <CheckCircle2 size={20} className="text-green-600 mt-0.5" />
             )}
             <div className="flex-1">
               <p className="text-sm font-bold text-[#4A2C2A]">
-                {saveStatus === 'saving' ? 'Salvando…' : saveStatus === 'saved' ? 'Dados salvos' : 'Falha ao salvar'}
+                {isSaving ? 'Salvando…' : error ? 'Falha ao salvar' : 'Dados salvos'}
               </p>
-              {saveStatus === 'saved' && lastSavedAt && (
+              {!error && lastSavedAt && (
                 <p className="text-xs text-[#8B5E3C] mt-0.5">Último salvamento: {format(lastSavedAt, 'HH:mm:ss')}</p>
               )}
-              {saveStatus === 'error' && saveMessage && (
-                <p className="text-xs text-red-600 mt-0.5 break-words">{saveMessage}</p>
+              {error && (
+                <p className="text-xs text-red-600 mt-0.5 break-words">{error}</p>
               )}
-              {saveStatus === 'error' && (
+              {error && (
                 <button
                   onClick={() => saveNow()}
                   className="mt-2 bg-[#4A2C2A] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#3A2220] transition-colors"
@@ -69,12 +69,14 @@ export default function Layout() {
                 </button>
               )}
             </div>
-            <button
-              onClick={() => setSaveStatus('idle')}
-              className="p-1 hover:bg-[#F7F0E4] rounded-lg text-[#8B5E3C]"
-            >
-              <X size={16} />
-            </button>
+            {error && (
+              <button
+                onClick={clearError}
+                className="p-1 hover:bg-[#F7F0E4] rounded-lg text-[#8B5E3C]"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -24,8 +24,11 @@ export interface AppState {
   removeOrder: (id: string) => void;
   updateOrder: (order: ProductionOrder) => void;
 
-  // Actions - Config
+  // Actions -// Config
   setConfig: (config: FactoryConfig) => void;
+  
+  // Hydrate
+  hydrateState: (data: Partial<AppState>) => void;
 }
 
 const INITIAL_MATERIALS: RawMaterial[] = [
@@ -106,5 +109,13 @@ export const useAppStore = create<AppState>((set) => ({
   })),
 
   // Config
-  setConfig: (config) => set({ config })
+  setConfig: (config) => set({ config }),
+  
+  // Reset/Load Entire State
+  hydrateState: (data: Partial<AppState>) => set((state) => ({
+    products: data.products || state.products,
+    materials: data.materials || state.materials,
+    orders: data.orders || state.orders,
+    config: data.config || state.config
+  }))
 }));
